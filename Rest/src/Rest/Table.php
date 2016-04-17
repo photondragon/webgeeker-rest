@@ -101,6 +101,36 @@ class Table //implements ArrayAccess
     }
 
     /**
+     * @param $fields array 格式['field1'=>$value1, 'field2'=>$value2, ...]
+     * @return array[]
+     * @throws \Exception
+     */
+    public function findAllByFields($fields)
+    {
+        if (is_array($fields)===false)
+            throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 无效参数");
+
+        $isFirst = true;
+        $params = [];
+        $condition = '';
+        foreach ($fields as $field => $value) {
+            if ($isFirst) {
+                $condition = "$field=?";
+                $isFirst = false;
+            }
+            else
+                $condition .= " AND $field=?";
+            $params[] = $value;
+        }
+
+        $stmtString = "SELECT * FROM {$this->tableName} WHERE $condition";
+        $stmt = $this->prepareStmt($stmtString);
+        $stmt->execute($params);
+        $infos = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        return $infos;
+    }
+
+    /**
      * @param MysqlQuery $query
      * @return array[]
      */
@@ -119,12 +149,21 @@ class Table //implements ArrayAccess
      */
     function insert(array $fields)
     {
-        $fieldNames = array_keys($fields);
+        $fieldNames = [];
+        $fieldValues = [];
+        array_walk($fields, function(&$value, $key) use(&$fieldNames, &$fieldValues){
+            $fieldNames[] = $key;
+            $type = gettype($value);
+            if($type==='array' || $type==='object')
+                $fieldValues[$key] = json_encode($value);
+            else
+                $fieldValues[$key] = $value;
+        });
         $fieldsString = implode(',', $fieldNames);
         $valuesString = ':' . implode(',:', $fieldNames);
         $stmtString = "INSERT INTO {$this->tableName}($fieldsString) VALUES($valuesString)";
         $stmt = $this->prepareStmt($stmtString);
-        $stmt->execute($fields);
+        $stmt->execute($fieldValues);
         return $this->database->pdo->lastInsertId();
     }
 
@@ -134,7 +173,11 @@ class Table //implements ArrayAccess
         $values = [];
         array_walk($fields, function(&$value, $key) use(&$fieldStrings, &$values){
             $fieldStrings[] = "$key=?";
-            $values[] = $value;
+            $type = gettype($value);
+            if($type==='array' || $type==='object')
+                $values[] = json_encode($value);
+            else
+                $values[] = $value;
         });
         $values[] = $id;
         $fieldsString = implode(',', $fieldStrings);

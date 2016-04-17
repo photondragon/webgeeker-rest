@@ -26,6 +26,13 @@ class Result
 {
     public $content;
 
+    public function hasError()
+    {
+        if(@$this->content['e'] != 0)
+            return true;
+        return false;
+    }
+    
     public function error($errorCode, $errorString)
     {
         if($errorCode==0)

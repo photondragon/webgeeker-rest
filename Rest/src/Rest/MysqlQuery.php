@@ -94,8 +94,8 @@ class AndCondition implements IQueryCondition
     public function __toString()
     {
         if (count($this->conditions)===0)
-            throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有有效条件");;
-        return implode(' AND ', $this->conditions);
+            throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有有效条件");
+        return (string)implode(' AND ', $this->conditions);
     }
 }
 

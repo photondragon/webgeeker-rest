@@ -171,8 +171,13 @@ class Module
                 $params = $request->getParsedBody();
                 if($id===null)
                     $this->post($params);
-                else
-                    $this->postById($id, $params);
+                else {
+                    $m = 'postTo' . ucfirst($id);
+                    if(method_exists($this, $m))
+                        $this->$m($params);
+                    else
+                        $this->postById($id, $params);
+                }
                 break;
             }
             case 'PUT': {

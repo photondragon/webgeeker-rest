@@ -42,7 +42,7 @@ class SimpleCookie
      */
     public static function set($name, $value, $duration, $httpsOnly = false, $hideFromJS = true)
     {
-        setcookie($name, $value, time()+$duration, null, null, $httpsOnly, $hideFromJS);
+        setcookie($name, $value, time()+$duration, '/', null, $httpsOnly, $hideFromJS);
     }
 
     /**
@@ -54,12 +54,12 @@ class SimpleCookie
      */
     public static function setWhenSession($name, $value, $httpsOnly = false, $hideFromJS = true)
     {
-        setcookie($name, $value, 0, null, null, $httpsOnly, $hideFromJS);
+        setcookie($name, $value, 0, '/', null, $httpsOnly, $hideFromJS);
     }
 
     public static function remove($name, $httpsOnly = false, $hideFromJS = true)
     {
-        setcookie($name, $_COOKIE[$name], 1, null, null, $httpsOnly, $hideFromJS);
+        setcookie($name, null, 1, '/', null, $httpsOnly, $hideFromJS);
     }
 
 }

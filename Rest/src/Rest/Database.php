@@ -34,7 +34,7 @@ class Database
         $dbname = $dbParams['dbname'];
         $dbuser = $dbParams['dbuser'];
         $dbpass = $dbParams['dbpass'];
-        $dsn = "mysql:host={$dbhost};dbname={$dbname}";
+        $dsn = "mysql:host={$dbhost};dbname={$dbname};charset=utf8";
         $this->pdo = new \PDO($dsn, $dbuser, $dbpass);
         $this->pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION); //出错就抛异常
         $this->pdo->setAttribute(\PDO::ATTR_EMULATE_PREPARES, false); //防止数字变字符串
@@ -43,6 +43,9 @@ class Database
 
     private static $defaultDB = null; //默认的数据库（全局唯一）
 
+    /**
+     * @return null|Database
+     */
     public static function getDefaultDB() //获取默认的数据库（全局唯一），默认值是null
     {
         return self::$defaultDB;
@@ -56,5 +59,21 @@ class Database
     public static function setDefaultDB(Database $database)
     {
         self::$defaultDB = $database;
+    }
+
+    /**
+     * @param $sql
+     * @return int 返回受影响的行数
+     * @throws \Exception
+     */
+    public function executeSql($sql)
+    {
+        $ret = $this->pdo->exec($sql);
+        if($ret===false) //如果配置PDO为抛出异常，则不会返回false
+        {
+            $this->pdo->errorInfo();
+            throw new \Exception($this->pdo->errorInfo());
+        }
+        return $ret;
     }
 }

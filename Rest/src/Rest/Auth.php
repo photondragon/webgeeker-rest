@@ -82,11 +82,11 @@ class Auth
      */
     public static function markAsLogout()
     {
-        // 设置一个无效的token，因为PostMan似乎不能正确删除cookie
-        SimpleCookie::set('sessionKey', "0", self::$loginValidityPeriod+60);
-        SimpleCookie::set('secretToken', "0", self::$loginValidityPeriod+60, true);
-//        SimpleCookie::remove('sessionKey');
-//        SimpleCookie::remove('secretToken', true);
+        // 设置一个无效的token，因为PostMan似乎不能正确删除cookie (最终发现这个问题是因为cookie的path设置不一致造成)
+//        SimpleCookie::set('sessionKey', "0", self::$loginValidityPeriod+60);
+//        SimpleCookie::set('secretToken', "0", self::$loginValidityPeriod+60, true);
+        SimpleCookie::remove('sessionKey');
+        SimpleCookie::remove('secretToken', true);
     }
 
     public static function checkHttps()

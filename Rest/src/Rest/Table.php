@@ -49,23 +49,48 @@ class Table //implements ArrayAccess
     }
 
     /**
-     * @param $field
+     * @param $fieldName
      * @param $value
      * @return null|array
      * @throws \Exception
      */
-    public function findByField($field, $value)
+    public function findByField($fieldName, $value)
     {
-        if (strlen($field)==0 || isset($value)===false)
+        if (strlen($fieldName)==0 || isset($value)===false)
             throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 无效参数");
 
-        $stmtString = "SELECT * FROM {$this->tableName} WHERE $field=? LIMIT 1";
+        $stmtString = "SELECT * FROM `{$this->tableName}` WHERE $fieldName=? LIMIT 1";
         $stmt = $this->prepareStmt($stmtString);
         $stmt->execute([$value]);
         $info = $stmt->fetch(\PDO::FETCH_ASSOC);
         if ($info==false)
             return null;
         return $info;
+    }
+
+    /**
+     * 相当于 SELECT * WHERE field IN(?,?,?) 语句
+     * @param $fieldName string
+     * @param $valueList array
+     * @return array[]
+     * @throws \Exception
+     */
+    public function findAllInFieldValueList($fieldName, $valueList)
+    {
+        $count = count($valueList);
+        if (strlen($fieldName)==0 || $count===0)
+            throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 无效参数");
+
+        $array = [];
+        for ($i = 0; $i < $count; $i++) {
+            $array[] = '?';
+        }
+        $str = implode(',', $array);
+        $stmtString = "SELECT * FROM `{$this->tableName}` WHERE $fieldName IN($str)";
+        $stmt = $this->prepareStmt($stmtString);
+        $stmt->execute($valueList);
+        $infos = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        return $infos;
     }
 
     /**
@@ -91,7 +116,45 @@ class Table //implements ArrayAccess
             $params[] = $value;
         }
 
-        $stmtString = "SELECT * FROM {$this->tableName} WHERE $condition LIMIT 1";
+        $stmtString = "SELECT * FROM `{$this->tableName}` WHERE $condition LIMIT 1";
+        $stmt = $this->prepareStmt($stmtString);
+        $stmt->execute($params);
+        $info = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if ($info==false)
+            return null;
+        return $info;
+    }
+    /**
+     * @param $fields array 格式['field1'=>$value1, 'field2'=>$value2, ...]
+     * @param $increaseField string 要增加的字段名
+     * @param $deltaValue int 要增加的数值, 可正可负
+     * @return null|array
+     * @throws \Exception
+     */
+    public function findAndIncreaseByFields($fields, $increaseField, $deltaValue)
+    {
+        if (is_array($fields)===false)
+            throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 无效参数");
+
+        $isFirst = true;
+        $params = [];
+        $condition = '';
+        foreach ($fields as $field => $value) {
+            if ($isFirst) {
+                $condition = "$field=:$field";
+                $isFirst = false;
+            }
+            else {
+                $condition .= " AND $field=:$field";
+            }
+            $params[$field] = $value;
+        }
+        // 自增
+        $stmtString = "UPDATE `{$this->tableName}` SET $increaseField=$increaseField+($deltaValue) WHERE $condition LIMIT 1;\n";
+        $stmt = $this->prepareStmt($stmtString);
+        $stmt->execute($params);
+        
+        $stmtString = "SELECT * FROM `{$this->tableName}` WHERE $condition LIMIT 1;";
         $stmt = $this->prepareStmt($stmtString);
         $stmt->execute($params);
         $info = $stmt->fetch(\PDO::FETCH_ASSOC);
@@ -123,7 +186,7 @@ class Table //implements ArrayAccess
             $params[] = $value;
         }
 
-        $stmtString = "SELECT * FROM {$this->tableName} WHERE $condition";
+        $stmtString = "SELECT * FROM `{$this->tableName}` WHERE $condition";
         $stmt = $this->prepareStmt($stmtString);
         $stmt->execute($params);
         $infos = $stmt->fetchAll(\PDO::FETCH_ASSOC);
@@ -131,12 +194,42 @@ class Table //implements ArrayAccess
     }
 
     /**
-     * @param MysqlQuery $query
+     * @param $fields array 格式['field1'=>$value1, 'field2'=>$value2, ...]
+     * @return int
+     * @throws \Exception
+     */
+    public function countByFields($fields)
+    {
+        if (is_array($fields)===false)
+            throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 无效参数");
+
+        $isFirst = true;
+        $params = [];
+        $condition = '';
+        foreach ($fields as $field => $value) {
+            if ($isFirst) {
+                $condition = "$field=?";
+                $isFirst = false;
+            }
+            else
+                $condition .= " AND $field=?";
+            $params[] = $value;
+        }
+
+        $stmtString = "SELECT COUNT(*) AS c FROM `{$this->tableName}` WHERE $condition";
+        $stmt = $this->prepareStmt($stmtString);
+        $stmt->execute($params);
+        $infos = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        return (int)@$infos[0]['c'];
+    }
+
+    /**
+     * @param IQuery $query
      * @return array[]
      */
-    public function findAllWithQuery(MysqlQuery $query)
+    public function findAllWithQuery(IQuery $query)
     {
-        $sql = $query->getSqlString($this->tableName);
+        $sql = $query->getQueryString($this->tableName);
         $stmt = $this->database->pdo->query($sql);
         $infos = $stmt->fetchAll(\PDO::FETCH_ASSOC);
         return $infos;
@@ -159,19 +252,48 @@ class Table //implements ArrayAccess
             else
                 $fieldValues[$key] = $value;
         });
-        $fieldsString = implode(',', $fieldNames);
+        $fieldsString = implode('`,`', $fieldNames);
         $valuesString = ':' . implode(',:', $fieldNames);
-        $stmtString = "INSERT INTO {$this->tableName}($fieldsString) VALUES($valuesString)";
+        $stmtString = "INSERT INTO `{$this->tableName}`(`$fieldsString`) VALUES($valuesString)";
         $stmt = $this->prepareStmt($stmtString);
         $stmt->execute($fieldValues);
         return $this->database->pdo->lastInsertId();
     }
 
-    public function update($id, array $fields)
+    /**
+     * @param array $fields 要保存的字段，格式['field1'=>$value1, 'field2'=>$value2, ...]
+     * @return string 插入的ID
+     * @throws \Exception
+     */
+    function insertOrReplace(array $fields)
+    {
+        $fieldNames = [];
+        $fieldValues = [];
+        $updates = [];
+        array_walk($fields, function(&$value, $key) use(&$fieldNames, &$fieldValues, &$updates){
+            $fieldNames[] = $key;
+            $updates[] = "$key=:{$key}2";
+            $type = gettype($value);
+            if($type==='array' || $type==='object')
+                $fieldValues[$key] = json_encode($value);
+            else
+                $fieldValues[$key] = $value;
+            $fieldValues[$key.'2'] = $fieldValues[$key];
+        });
+        $fieldsString = implode('`,`', $fieldNames);
+        $valuesString = ':' . implode(',:', $fieldNames);
+        $updateFieldsString = implode(',', $updates);
+        $stmtString = "INSERT INTO `{$this->tableName}`(`$fieldsString`) VALUES($valuesString) ON DUPLICATE KEY UPDATE $updateFieldsString";
+        $stmt = $this->prepareStmt($stmtString);
+        $stmt->execute($fieldValues);
+        return $this->database->pdo->lastInsertId();
+    }
+
+    public function update($primaryKey, $id, array $fieldValues)
     {
         $fieldStrings = [];
         $values = [];
-        array_walk($fields, function(&$value, $key) use(&$fieldStrings, &$values){
+        array_walk($fieldValues, function(&$value, $key) use(&$fieldStrings, &$values){
             $fieldStrings[] = "$key=?";
             $type = gettype($value);
             if($type==='array' || $type==='object')
@@ -181,7 +303,37 @@ class Table //implements ArrayAccess
         });
         $values[] = $id;
         $fieldsString = implode(',', $fieldStrings);
-        $stmtString = "UPDATE {$this->tableName} SET $fieldsString WHERE id=?";
+        $stmtString = "UPDATE `{$this->tableName}` SET $fieldsString WHERE `$primaryKey`=?";
+        $stmt = $this->prepareStmt($stmtString);
+        $stmt->execute($values);
+        return $stmt->rowCount();
+    }
+
+    /**
+     * @param $wheres array 例:['fid'=1,'uid'=2]会被展开成'WHERE fid=1 AND uid=2'
+     * @param array $fieldValues
+     * @return int
+     */
+    public function updateWhere($wheres, array $fieldValues)
+    {
+        $fieldStrings = [];
+        $values = [];
+        array_walk($fieldValues, function(&$value, $key) use(&$fieldStrings, &$values){
+            $fieldStrings[] = "$key=?";
+            $type = gettype($value);
+            if($type==='array' || $type==='object')
+                $values[] = json_encode($value);
+            else
+                $values[] = $value;
+        });
+        $whereKeys = [];
+        foreach ($wheres as $key=>$value) {
+            $whereKeys[] = "$key=?";
+            $values[] = $value;
+        }
+        $whereString = implode(' AND ', $whereKeys);
+        $fieldsString = implode(',', $fieldStrings);
+        $stmtString = "UPDATE `{$this->tableName}` SET $fieldsString WHERE $whereString";
         $stmt = $this->prepareStmt($stmtString);
         $stmt->execute($values);
         return $stmt->rowCount();
@@ -203,7 +355,7 @@ class Table //implements ArrayAccess
         if (strlen($field)==0 || isset($value)===false)
             throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 无效参数");
 
-        $stmtString = "DELETE FROM {$this->tableName} WHERE $field=?";
+        $stmtString = "DELETE FROM `{$this->tableName}` WHERE $field=?";
         $stmt = $this->prepareStmt($stmtString);
         $stmt->execute([$value]);
         return $stmt->rowCount();
@@ -232,7 +384,7 @@ class Table //implements ArrayAccess
             $params[] = $value;
         }
 
-        $stmtString = "DELETE FROM {$this->tableName} WHERE $condition";
+        $stmtString = "DELETE FROM `{$this->tableName}` WHERE $condition";
         $stmt = $this->prepareStmt($stmtString);
         $stmt->execute($params);
         return $stmt->rowCount();
@@ -248,7 +400,19 @@ class Table //implements ArrayAccess
         $condstr = (string)$condition;
         if(strlen($condstr)===0)
             throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 无效参数\$condition");
-        $stmtString = "DELETE FROM {$this->tableName} WHERE $condstr";
+        $stmtString = "DELETE FROM `{$this->tableName}` WHERE $condstr";
+        $stmt = $this->prepareStmt($stmtString);
+        $stmt->execute();
+        return $stmt->rowCount();
+    }
+
+    /**
+     * 相当于 TRUNCATE TABLE tablename
+     * @return int 删除的行数
+     */
+    public function deleteAll()
+    {
+        $stmtString = "TRUNCATE TABLE `{$this->tableName}`";
         $stmt = $this->prepareStmt($stmtString);
         $stmt->execute();
         return $stmt->rowCount();

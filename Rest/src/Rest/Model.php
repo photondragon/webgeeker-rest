@@ -43,6 +43,7 @@ class Model
     protected static $ignoredProperties; // self::getFieldNames()会自动忽略的属性列表。默认null
     protected static $fieldNames; // 所有（要存入数据库的）字段名，会自动生成（忽略static::$ignoredProperties）
     protected static $fieldTypes = ['' => self::FieldTypeInt32, ]; //字段类型的关联数组. 格式: [fieldName=>fieldType, ...]
+    protected static $uniqueIndices = null; //唯一索引. 例: ['fid', 'uid']
 
     /**
      * 获取主键
@@ -56,10 +57,15 @@ class Model
     /**
      * 设置ID，会根据主键类型自动作类型转换
      * @param $id
+     * @throws \Exception
      */
     public function setId($id)
     {
         $pk = static::$primaryKey;
+        if($pk==null){
+            throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 该模型没有主键");
+        }
+
         switch ($this->getFieldType($pk)) {
             case self::FieldTypeInt32: {
                 if (is_int($id)===false)
@@ -69,6 +75,11 @@ class Model
             case self::FieldTypeFloat: {
                 if (is_float($id)===false)
                     $id = (float)$id;
+                break;
+            }
+            case self::FieldTypeDouble: {
+                if (is_double($id)===false)
+                    $id = (double)$id;
                 break;
             }
             case self::FieldTypeString: {
@@ -138,8 +149,6 @@ class Model
         switch ($type) {
             case self::FieldTypeString:
             case self::FieldTypeChars:
-                if($value===null)
-                    break;
                 if(is_string($value)===false)
                     $value = (string)$value;
                 break;
@@ -156,13 +165,18 @@ class Model
                     $value = (double)$value;
                 break;
             case self::FieldTypeBool:
-                if(is_bool($value)===false)
-                    $value = (bool)$value;
+                if(is_bool($value)===false) {
+                    if(is_string($value)) {
+                        if(trim($value)==='true')
+                            $value = true;
+                        else
+                            $value = false;
+                    }
+                    else
+                        $value = (bool)$value;
+                }
                 break;
             case self::FieldTypeList:
-                if($value===null)
-                    break;
-
                 $t = gettype($value);
                 if($t==='string') {
                     $value = @json_decode($value, true);
@@ -191,9 +205,6 @@ class Model
                     $value = null;
                 break;
             case self::FieldTypeMap:
-                if($value===null)
-                    break;
-
                 $t = gettype($value);
                 if($t==='string') {
                     $value = @json_decode($value, true);
@@ -236,6 +247,11 @@ class Model
     private $isFromDB; //从DB中查询得到的，不是外部new出来的
     private $rawData; //原始数据数组
 
+    /**
+     * 从数据库中读取的关联数组中*增量*加载数据（会自动转换数据类型）
+     * **只加载 $dbRawData 中存在的键值对**
+     * @param array $dbRawData 包含字段值的关联数组
+     */
     private function loadFromDBRawData(Array $dbRawData) //只在内部使用，$rawData是从数据库里面读出来的原始数据
     {
         if (count($dbRawData)===0)
@@ -243,13 +259,16 @@ class Model
 
         foreach (self::getFieldNames() as $key) {
             $value = @$dbRawData[$key];
+            if($value===null)
+                continue;
             $this->$key = self::correctFieldValue($key, $value);
         }
         $this->rawData = $dbRawData;
     }
 
     /**
-     * 从外部提供的关联数组中加载数据
+     * 从外部提供的关联数组中*增量*加载数据（会自动转换数据类型）
+     * **只加载 $fieldValues 中存在的键值对**
      * 只加载self::getFieldNames()返回的那些字段，并且不包括参数$excludeFields所包含的字段
      * @param array $fieldValues 包含字段值的关联数组
      * @param array|null $excludeFields 要排除的字段。例：['password','phone']
@@ -265,11 +284,30 @@ class Model
             else
                 $fieldNames = array_diff($fieldNames, $excludeFields);
         }
-        $pk = self::getPrimaryKey();
+
+        foreach ($fieldValues as $key => $value) {
+            if(in_array($key, $fieldNames)===false) //非法的键值对, 忽略
+                continue;
+            if ($value === null)
+                continue;
+            $this->$key = self::correctFieldValue($key, $value);
+        }
+    }
+
+    /**
+     * 从外部提供的关联数组中*覆盖式*加载数据（会自动转换数据类型）
+     * 对于 $fieldValues 中不存在的键, 按null进行重置
+     * 只加载self::getFieldNames()返回的那些字段，并且不包括参数$excludeFields所包含的字段
+     * @param array $fieldValues 包含字段值的关联数组
+     */
+    public function reloadFromFieldValues(array $fieldValues)
+    {
+        $fieldNames = self::getFieldNames();
+
         foreach ($fieldNames as $key) {
             $value = @$fieldValues[$key];
-            if($key===$pk) //主键
-                $this->setId($value);
+            if ($value === null)
+                $this->$key = null;
             else
                 $this->$key = self::correctFieldValue($key, $value);
         }
@@ -378,22 +416,42 @@ class Model
      * @return int 受影响的行数。0或1
      * @throws \Exception
      */
-    public function saveByFields(array $fieldNames)
+    public function saveByFieldNames(array $fieldNames)
     {
         $pk = static::$primaryKey;
-        $id = @$this->$pk;
-        if($id===null) //没有设置ID，无法保存
-            throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有设置主键，无法保存");;
+        if($pk==null) //没有主键（不是主键没有值）
+        {
+            if (static::$uniqueIndices === null) // 也没有唯一索引
+                throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有主键，也没有唯一索引，无法保存");
+            $wheres = $this->getFieldValues(static::$uniqueIndices);
+            foreach (static::$uniqueIndices as $index) {
+                if (in_array($index, $fieldNames)) // 提供的字段列表中包含唯一索引，自动剔除
+                    $fieldNames = array_diff($fieldNames, [$index]);
+            }
+            $values = $this->getFieldValues($fieldNames);
+            if (count($values) === 0) // 没有提供有效字段
+                throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有提供有效字段，无法保存");
 
-        if(in_array($pk, $fieldNames)) // 提供的字段列表中包含主键，自动剔除
-            $fieldNames = array_diff($fieldNames, [$pk]);
-        $values = $this->getFieldValues($fieldNames);
-        if(count($values)===0) // 提供了非法字段
-            throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 提供了非法字段，无法保存");;
+            if (in_array('updateTime', self::getFieldNames()))
+                $values['updateTime'] = time();
+            return static::getTable()->updateWhere($wheres, $values);
+        }
+        else // 有主键的情况
+        {
+            $id = @$this->$pk;
+            if ($id === null) //没有设置ID，无法保存
+                throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 主键没有值，无法保存");;
 
-        if(in_array('updateTime', self::getFieldNames()))
-            $values['updateTime'] = time();
-        return static::getTable()->update($id, $values);
+            if (in_array($pk, $fieldNames)) // 提供的字段列表中包含主键，自动剔除
+                $fieldNames = array_diff($fieldNames, [$pk]);
+            $values = $this->getFieldValues($fieldNames);
+            if (count($values) === 0) // 没有提供有效字段
+                throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有提供有效字段，无法保存");;
+
+            if (in_array('updateTime', self::getFieldNames()))
+                $values['updateTime'] = time();
+            return static::getTable()->update($pk, $id, $values);
+        }
     }
 
     /**
@@ -404,32 +462,70 @@ class Model
      */
     public function saveValidFieldValues()
     {
-        $values = $this->getValidFieldValues();
         $pk = static::$primaryKey;
-        unset($values[$pk]);
-        if(count($values)===0) //没有有效字段，无需保存
-            return 0;
-        $id = @$this->$pk;
-        if($id===null)//主键没有值，无法保存
-            throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有设置主键的值，无法保存");;
-        if(in_array('updateTime', self::getFieldNames()))
-            $values['updateTime'] = time();
-        return static::getTable()->update($id, $values);
+        if($pk==null) //没有主键（不是主键没有值）
+        {
+            if (static::$uniqueIndices === null) // 也没有唯一索引
+                throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有主键，也没有唯一索引，无法保存");
+            $wheres = $this->getFieldValues(static::$uniqueIndices);
+            $values = $this->getValidFieldValues();
+            foreach (static::$uniqueIndices as $index) {
+                unset($values[$index]);
+            }
+            if (count($values) === 0) //没有有效字段，无需保存
+                return 0;
+
+            if (in_array('updateTime', self::getFieldNames()))
+                $values['updateTime'] = time();
+            return static::getTable()->updateWhere($wheres, $values);
+        }
+        else // 有主键的情况
+        {
+            $values = $this->getValidFieldValues();
+            unset($values[$pk]);
+            if (count($values) === 0) //没有有效字段，无需保存
+                return 0;
+            $id = @$this->$pk;
+            if ($id === null)//主键没有值，无法保存
+                throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有设置主键的值，无法保存");;
+            if (in_array('updateTime', self::getFieldNames()))
+                $values['updateTime'] = time();
+            return static::getTable()->update($pk, $id, $values);
+        }
     }
 
     public function saveAllFieldValues() //保存所有字段，值为null的字段也保存（完全覆盖）
     {
-        $values = $this->getAllFieldValues();
         $pk = static::$primaryKey;
-        unset($values[$pk]);
-        if(count($values)===0) //没有有效字段，无需保存
-            throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 这是一个无效的Model，没有需要保存的字段");
-        $id = @$this->$pk;
-        if($id===null)//主键没有值，无法保存
-            throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有设置主键的值，无法保存");;
-        if(in_array('updateTime', self::getFieldNames()))
-            $values['updateTime'] = time();
-        return static::getTable()->update($id, $values);
+        if($pk==null) //没有主键（不是主键没有值）
+        {
+            if (static::$uniqueIndices === null) // 也没有唯一索引
+                throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有主键，也没有唯一索引，无法保存");
+            $wheres = $this->getFieldValues(static::$uniqueIndices);
+            $values = $this->getAllFieldValues();
+            foreach (static::$uniqueIndices as $index) {
+                unset($values[$index]);
+            }
+            if (count($values) === 0) //没有有效字段，无需保存
+                throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有提供有效字段，无法保存");
+
+            if (in_array('updateTime', self::getFieldNames()))
+                $values['updateTime'] = time();
+            return static::getTable()->updateWhere($wheres, $values);
+        }
+        else // 有主键的情况
+        {
+            $values = $this->getAllFieldValues();
+            unset($values[$pk]);
+            if (count($values) === 0) //没有有效字段，无需保存
+                throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 这是一个无效的Model，没有需要保存的字段");
+            $id = @$this->$pk;
+            if ($id === null)//主键没有值，无法保存
+                throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有设置主键的值，无法保存");;
+            if (in_array('updateTime', self::getFieldNames()))
+                $values['updateTime'] = time();
+            return static::getTable()->update($pk, $id, $values);
+        }
     }
 
     /**
@@ -440,24 +536,48 @@ class Model
      */
     public function saveModifiedFieldValues()
     {
-        $values = $this->getModifiedFieldValues();
         $pk = static::$primaryKey;
-        if(isset($values[$pk])) //主键的值被修改
+        if($pk==null) //没有主键（不是主键没有值）
         {
-            if($this->isFromDB) //Model来自数据库，主键的值被修改，是不能保存的
-                throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): Model来自数据库，主键的值被修改，不能保存（应该创建新的Model对象再保存）");
-            unset($values[$pk]);
+            if (static::$uniqueIndices === null) // 也没有唯一索引
+                throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有主键，也没有唯一索引，无法保存");
+            $wheres = $this->getFieldValues(static::$uniqueIndices);
+            $values = $this->getModifiedFieldValues();
+            foreach (static::$uniqueIndices as $index) {
+                if (isset($values[$index])) //唯一键的值被修改
+                {
+                    if ($this->isFromDB) //Model来自数据库，主键的值被修改，是不能保存的
+                        throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): Model来自数据库，唯一键的值被修改，不能保存（应该创建新的Model对象再保存）");
+                    unset($values[$index]);
+                }
+            }
+            if (count($values) === 0) //没有修改的字段，无需保存
+                return 0;
+
+            if (in_array('updateTime', self::getFieldNames()))
+                $values['updateTime'] = time();
+            return static::getTable()->updateWhere($wheres, $values);
         }
+        else // 有主键的情况
+        {
+            $values = $this->getModifiedFieldValues();
+            if (isset($values[$pk])) //主键的值被修改
+            {
+                if ($this->isFromDB) //Model来自数据库，主键的值被修改，是不能保存的
+                    throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): Model来自数据库，主键的值被修改，不能保存（应该创建新的Model对象再保存）");
+                unset($values[$pk]);
+            }
 
-        if(count($values)===0) //没有修改的字段，无需保存
-            return 0;
+            if (count($values) === 0) //没有修改的字段，无需保存
+                return 0;
 
-        $id = @$this->$pk;
-        if($id===null)//主键没有值，无法保存
-            throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有设置主键的值，无法保存");;
-        if(in_array('updateTime', self::getFieldNames()))
-            $values['updateTime'] = time();
-        return static::getTable()->update($id, $values);
+            $id = @$this->$pk;
+            if ($id === null)//主键没有值，无法保存
+                throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有设置主键的值，无法保存");;
+            if (in_array('updateTime', self::getFieldNames()))
+                $values['updateTime'] = time();
+            return static::getTable()->update($pk, $id, $values);
+        }
     }
 
     /**
@@ -467,40 +587,98 @@ class Model
     public function insert() //向数据库插入一条新记录
     {
         $values = $this->getValidFieldValues(); //获取有效键值对
-        if (count($values)===0)
+        if (count($values) === 0)
             throw new \Exception(get_class($this) . "对象属性全为null");
 
         $allFieldNames = self::getFieldNames();
-        if(in_array('createTime', $allFieldNames))
+        if (in_array('createTime', $allFieldNames))
             $values['createTime'] = time();
-        if(in_array('updateTime', $allFieldNames))
+        if (in_array('updateTime', $allFieldNames))
             $values['updateTime'] = time();
+
         $id = static::getTable()->insert($values);
+
         $pk = static::$primaryKey;
         switch ($this->getFieldType($pk)) {
             case self::FieldTypeInt32:
-                $id = (int)$id;break;
+                $id = (int)$id;
+                break;
             case self::FieldTypeFloat:
-                $id = (float)$id;break;
+                $id = (float)$id;
+                break;
             default:
                 break;
+        }
+        if ($pk == null) {
+            return $id;
         }
         $this->$pk = $id;
         return $id;
     }
 
+    /**
+     * 如果记录不重复, 插入一条新数据; 如果重复, 则替换旧数据
+     * @return string lastInsertId
+     * @throws \Exception
+     */
+    public function insertOrReplace() //向数据库插入一条新记录
+    {
+        $values = $this->getValidFieldValues(); //获取有效键值对
+        if (count($values) === 0)
+            throw new \Exception(get_class($this) . "对象属性全为null");
+
+        $allFieldNames = self::getFieldNames();
+        if (in_array('createTime', $allFieldNames))
+            $values['createTime'] = time();
+        if (in_array('updateTime', $allFieldNames))
+            $values['updateTime'] = time();
+
+        $id = static::getTable()->insertOrReplace($values);
+
+        $pk = static::$primaryKey;
+        switch ($this->getFieldType($pk)) {
+            case self::FieldTypeInt32:
+                $id = (int)$id;
+                break;
+            case self::FieldTypeFloat:
+                $id = (float)$id;
+                break;
+            default:
+                break;
+        }
+        if($pk==null) {
+            return $id;
+        }
+        $this->$pk = $id;
+        return $id;
+
+    }
+
     public function delete() //从数据库中删除
     {
         $pk = static::$primaryKey;
-        $id = $this->$pk;
-        if($id===null)
-            throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有ID，无法删除");
-        return static::getTable()->deleteByField($pk, $id);
+        if($pk==null) //没有主键（不是主键没有值）
+        {
+            if (static::$uniqueIndices === null) // 也没有唯一索引
+                throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有主键，也没有唯一索引键，无法保存");
+            $wheres = $this->getFieldValues(static::$uniqueIndices);
+            return static::getTable()->deleteByFields($wheres);
+        }
+        else // 有主键的情况
+        {
+            $id = $this->$pk;
+            if ($id === null)
+                throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 主键没有值，无法删除");
+            return static::getTable()->deleteByField($pk, $id);
+        }
     }
 
     public static function deleteById($id)
     {
         $pk = static::$primaryKey;
+        if($pk==null){
+            throw new \Exception(get_class(new static) . '::' . __FUNCTION__ . "(): 该模型没有主键");
+        }
         if($id===null)
             throw new \Exception(get_called_class() . '::' . __FUNCTION__ . "(): ID不可为null");
         return static::getTable()->deleteByField($pk, $id);
@@ -521,9 +699,18 @@ class Model
         return static::getTable()->deleteByCondition($condition);
     }
 
+    public static function deleteAll()
+    {
+        return static::getTable()->deleteAll();
+    }
+
     public static function findById($id)
     {
         $pk = static::$primaryKey;
+        if($pk==null){
+            throw new \Exception(get_class(new static) . '::' . __FUNCTION__ . "(): 该模型没有主键");
+        }
+
         if($id===null)
             throw new \Exception(get_called_class() . '::' . __FUNCTION__ . "(): ID不可为null");
         $rawData = static::getTable()->findByField($pk, $id);
@@ -533,6 +720,45 @@ class Model
         $model->loadFromDBRawData($rawData);
         $model->isFromDB = true;
         return $model;
+    }
+
+    /**
+     * 根据ID列表查找所有记录
+     * @param $ids array|string ID列表. 如果是数组,形如[1,2,3];如果是字符中,形如'1,2,3'
+     * @return static[]
+     * @throws \Exception
+     */
+    public static function findAllByIds($ids)
+    {
+        $pk = static::$primaryKey;
+        if($pk==null){
+            throw new \Exception(get_class(new static) . '::' . __FUNCTION__ . "(): 该模型没有主键");
+        }
+
+        if(is_string($ids)){
+            $array = explode(',', $ids);
+            $ids = [];
+            foreach ($array as $id) {
+                $id = trim($id);
+                if(strlen($id))
+                    $ids[] = self::correctFieldValue($pk, $id);
+            }
+        }
+
+        if(count($ids)===0)
+            throw new \Exception(get_class(new static) . '::' . __FUNCTION__ . '无效的ID列表');
+
+        $rawDatas = static::getTable()->findAllInFieldValueList($pk, $ids);
+        if(count($rawDatas)==0)
+            return [];
+        $models = [];
+        foreach ($rawDatas as $rawData) {
+            $model = new static;
+            $model->loadFromDBRawData($rawData);
+            $model->isFromDB = true;
+            $models[] = $model;
+        }
+        return $models;
     }
 
     public static function findByField($field, $value)
@@ -563,6 +789,25 @@ class Model
     }
 
     /**
+     * 根据字段查询, 并且对指定字段的值进行增加
+     * @param $fields array 格式['field1'=>$value1, 'field2'=>$value2, ...];
+     * @param $increaseField string 要增加的字段名
+     * @param $deltaValue int 要增加的数值, 可正可负
+     * @return static
+     * @throws \Exception
+     */
+    public static function findAndIncreaseByFields($fields, $increaseField, $deltaValue)
+    {
+        $rawData = static::getTable()->findAndIncreaseByFields($fields, $increaseField, $deltaValue);
+        if($rawData===null)
+            return static::getNullObject();
+        $model = new static;
+        $model->loadFromDBRawData($rawData);
+        $model->isFromDB = true;
+        return $model;
+    }
+
+    /**
      * @param $fields array 格式['field1'=>$value1, 'field2'=>$value2, ...];
      * @return static[]
      * @throws \Exception
@@ -583,10 +828,20 @@ class Model
     }
 
     /**
-     * @param MysqlQuery $query
+     * @param $fields array 格式['field1'=>$value1, 'field2'=>$value2, ...];
+     * @return int
+     * @throws \Exception
+     */
+    public static function countByFields($fields)
+    {
+        return self::getTable()->countByFields($fields);
+    }
+
+    /**
+     * @param IQuery $query
      * @return static[]
      */
-    public static function findAllWithQuery(MysqlQuery $query)
+    public static function findAllWithQuery(IQuery $query)
     {
         $rawDatas = static::getTable()->findAllWithQuery($query);
         $models = [];
@@ -604,21 +859,13 @@ class Model
         return (string)($this->getValidFieldValues());
     }
 
-//    function markNew() {
-//        ModelRegistry::addNew( $this );
-//    }
-//
-//    function markDeleted() {
-//        ModelRegistry::addDelete( $this );
-//    }
-//
-//    function markDirty() {
-//        ModelRegistry::addDirty( $this );
-//    }
-//
-//    function markClean() {
-//        ModelRegistry::addClean( $this );
-//    }
+    /**
+     * @return IQuery
+     */
+    public static function createQuery()
+    {
+        return new MysqlQuery();
+    }
 }
 
 class ModelRegistry

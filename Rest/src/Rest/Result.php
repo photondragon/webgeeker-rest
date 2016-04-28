@@ -72,4 +72,8 @@ class Result
             return '{}';
         return json_encode($this->content, JSON_PRETTY_PRINT);
     }
+
+    public function setCustomContent($key, $value){
+        $this->content[$key] = $value;
+    }
 }

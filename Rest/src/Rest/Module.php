@@ -33,7 +33,8 @@ class Module
     }
 
     /**
-     * 获取列表。对应GET without ID
+     * 获取model列表
+     * 对应HTTP请求: GET https://example.com/api/model
      * @param $params array
      */
     public function get($params)
@@ -42,9 +43,10 @@ class Module
     }
 
     /**
-     * 根据ID查询一条记录。对应GET with ID
+     * 根据id查询指定model
+     * 对应HTTP请求: GET https://example.com/api/model/123
      * @param $id
-     * @param $params
+     * @param $params array
      */
     public function getById($id, $params)
     {
@@ -52,7 +54,8 @@ class Module
     }
 
     /**
-     * 新建一条记录。对应POST without ID
+     * 新建一条记录（id自动生成）
+     * 对应HTTP请求: POST https://example.com/api/model
      * @param $params array
      */
     public function post($params)
@@ -61,30 +64,41 @@ class Module
     }
 
     /**
-     * 增量更新。对应POST with ID
+     * 根据id*增量更新*指定model
+     * 对应HTTP请求: POST https://example.com/api/model/123
      * @param $id
-     * @param $params
+     * @param $params array
      */
-    public function postById($id, $params)
+    public function postToId($id, $params)
     {
         $this->notSupport($id, $params);
     }
 
     /**
-     * 如果$id指定的记录存在，则覆盖更新；如果不存在，则新建一条记录
-     * 对应PUT with ID
-     * @param $id
-     * @param $params
+     * 新建一条记录（id手动指定）
+     * 对应HTTP请求: PUT https://example.com/api/model
+     * @param $params array 参数中必须包含id字段
      */
-    public function putById($id, $params)
+    public function put($params)
+    {
+        $this->notSupport($params);
+    }
+
+    /**
+     * 根据id*覆盖*指定model
+     * 对应HTTP请求: PUT https://example.com/api/model/123
+     * @param $id
+     * @param $params array
+     */
+    public function putToId($id, $params)
     {
         $this->notSupport($id, $params);
     }
 
     /**
-     * 条件删除或清空。对应DELETE without ID
-     * @param $params
-     * @throws \Exception
+     * 清空或条件删除
+     * 对应HTTP请求: DELETE https://example.com/api/model
+     * @param $params array 可以包含删除条件
      */
     public function delete($params)
     {
@@ -92,17 +106,21 @@ class Module
     }
 
     /**
-     * 删除$id指定的记录。对应DELETE with ID
+     * 根据id删除指定model
+     * 对应HTTP请求: DELETE https://example.com/api/model/123
      * @param $id
+     * @param $params array
      */
-    public function deleteById($id)
+    public function deleteById($id, $params)
     {
-        $this->notSupport($id);
+        $this->notSupport($id, $params);
     }
 
     /**
-     * 部分更新$id指定的记录
-     * 对应PUT with ID
+     * 根据id修订指定model
+     * 对应HTTP请求: PATCH https://example.com/api/model/123
+     * 要求: 对于网络失败导致的重复提交要*幂等*
+     * 比如model.balance=100, PATCH balance=10一次后, balance=110; 再PATCH一次, balance=120
      * @param $id
      * @param $params
      */
@@ -135,7 +153,7 @@ class Module
         $this->notSupport($id);
     }
 
-    protected function notSupport()
+    final protected function notSupport()
     {
         func_get_args();
         $url = $this->request->getUri();
@@ -163,8 +181,13 @@ class Module
                 $params = $request->getQueryParams();
                 if($id===null)
                     $this->get($params);
-                else
-                    $this->getById($id, $params);
+                else {
+                    $m = 'get' . ucfirst($id);
+                    if(method_exists($this, $m))
+                        $this->$m($params);
+                    else
+                        $this->getById($id, $params);
+                }
                 break;
             }
             case 'POST': {
@@ -176,23 +199,24 @@ class Module
                     if(method_exists($this, $m))
                         $this->$m($params);
                     else
-                        $this->postById($id, $params);
+                        $this->postToId($id, $params);
                 }
                 break;
             }
             case 'PUT': {
                 $params = $request->getParsedBody();
                 if($id===null)
-                    $this->notSupport();
+                    $this->put($params);
                 else
-                    $this->putById($id, $params);
+                    $this->putToId($id, $params);
                 break;
             }
             case 'DELETE': {
+                $params = $request->getQueryParams();
                 if($id===null)
-                    $this->delete($request->getParsedBody());
+                    $this->delete($params);
                 else
-                    $this->deleteById($id);
+                    $this->deleteById($id, $params);
                 break;
             }
             case 'PATCH': {

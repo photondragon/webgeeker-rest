@@ -11,6 +11,7 @@ namespace WebGeeker\Rest;
 
 use \Psr\Http\Message\ResponseInterface as IResponse;
 use \Psr\Http\Message\ServerRequestInterface as IRequest;
+use WebGeeker\Utils\SimpleCookie;
 
 /**
  * @file Module.php
@@ -172,7 +173,7 @@ class Module
      * 不同的Method对应不同的处理方法，如果现有的分发方案不满足需求，子类可以重载这个方法。
      * @param $id mixed|null
      */
-    public function process($id)
+    private function process($id)
     {
         $request = $this->request;
         $method = $request->getMethod();
@@ -244,5 +245,58 @@ class Module
                 break;
             }
         } //end switch
+    }
+
+    public static function dispatch($moduleName, $id, IRequest $request, IResponse $response)
+    {
+        $result = new Result;
+
+        ob_start(); //打开缓冲区，接收所有echo输出
+        try {
+            $module = self::createModule($moduleName, $request, $response, $result);
+            $module->process($id); //处理
+        } catch (\Exception $e) {
+            $result->error(1, $e->getMessage());
+        }
+        $echo = ob_get_contents(); //获取所有echo输出
+        ob_end_clean();
+
+        $host = $_SERVER['HTTP_HOST'];
+        if(@$_SERVER['HTTPS']) {
+            $response = $response->withHeader('Content-Type', 'application/json')
+                ->withHeader('Access-Control-Allow-Origin', "http://$host")
+                ->withHeader('Access-Control-Allow-Credentials', "true");
+        }
+        else{
+            $response = $response->withHeader('Content-Type', 'application/json');
+        }
+
+        $result->debug($echo); //将所有echo输出作为debug信息返回
+        $result->debug(var_export(SimpleCookie::getCookies(), true));
+        $response->getBody()->write($result->getJsonString());
+        return $response;
+    }
+
+    /**
+     * @param $moduleName
+     * @param IRequest $request
+     * @param IResponse $response
+     * @param Result $result
+     * @return Module
+     * @throws \Exception
+     */
+    private static function createModule($moduleName, IRequest $request, IResponse $response, Result $result)
+    {
+        if(strlen($moduleName)==0)
+            throw new \Exception('参数moduleName无效');
+        $className = ucfirst($moduleName) . 'Api';
+        try {
+            $module = new $className($request, $response, $result);
+        } catch (\Exception $e) {
+            throw new \Exception("找不模块$moduleName");
+        }
+        if($module instanceof Module)
+            return $module;
+        throw new \Exception('无效的模块' . $moduleName);
     }
 }

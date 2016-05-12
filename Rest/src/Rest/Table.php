@@ -49,6 +49,27 @@ class Table //implements ArrayAccess
     }
 
     /**
+     * 根据字段值检测记录是否存在
+     * @param $fieldName
+     * @param $value
+     * @return bool
+     * @throws \Exception
+     */
+    public function existsWithFieldValue($fieldName, $value)
+    {
+        if (strlen($fieldName)==0)
+            throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 参数fieldName无效");
+
+        $stmtString = "SELECT $fieldName FROM `{$this->tableName}` WHERE $fieldName=? LIMIT 1";
+        $stmt = $this->prepareStmt($stmtString);
+        $stmt->execute([$value]);
+        $info = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if ($info===false)
+            return false;
+        return true;
+    }
+
+    /**
      * @param $fieldName
      * @param $value
      * @return null|array
@@ -56,14 +77,14 @@ class Table //implements ArrayAccess
      */
     public function findByField($fieldName, $value)
     {
-        if (strlen($fieldName)==0 || isset($value)===false)
-            throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 无效参数");
+        if (strlen($fieldName)==0)
+            throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 参数fieldName无效");
 
         $stmtString = "SELECT * FROM `{$this->tableName}` WHERE $fieldName=? LIMIT 1";
         $stmt = $this->prepareStmt($stmtString);
         $stmt->execute([$value]);
         $info = $stmt->fetch(\PDO::FETCH_ASSOC);
-        if ($info==false)
+        if ($info===false)
             return null;
         return $info;
     }
@@ -314,12 +335,12 @@ class Table //implements ArrayAccess
      * @param array $fieldValues
      * @return int
      */
-    public function updateWhere($wheres, array $fieldValues)
+    public function updateWhere(array $wheres, array $fieldValues)
     {
         $fieldStrings = [];
         $values = [];
         array_walk($fieldValues, function(&$value, $key) use(&$fieldStrings, &$values){
-            $fieldStrings[] = "$key=?";
+            $fieldStrings[] = "`$key`=?";
             $type = gettype($value);
             if($type==='array' || $type==='object')
                 $values[] = json_encode($value);
@@ -328,12 +349,93 @@ class Table //implements ArrayAccess
         });
         $whereKeys = [];
         foreach ($wheres as $key=>$value) {
-            $whereKeys[] = "$key=?";
+            $whereKeys[] = "`$key`=?";
             $values[] = $value;
         }
         $whereString = implode(' AND ', $whereKeys);
         $fieldsString = implode(',', $fieldStrings);
         $stmtString = "UPDATE `{$this->tableName}` SET $fieldsString WHERE $whereString";
+        $stmt = $this->prepareStmt($stmtString);
+        $stmt->execute($values);
+        return $stmt->rowCount();
+    }
+
+    /**
+     * 为指定字段增加/减小值, 并且结果值>=0
+     * @param $primaryKey string
+     * @param $id mixed 主键值
+     * @param array $fieldValues 包含要变化的值的键值对数组
+     * @return int 修改的行数
+     * @throws \Exception
+     */
+    public function increaseNonnegatively($primaryKey, $id, array $fieldValues)
+    {
+        $fieldStrings = [];
+        $values = [];
+        $conds = [];
+
+        foreach ($fieldValues as $key => $value) {
+            if(!(is_int($value) || is_float($value) || is_double($value)))
+                throw new \Exception('Inc的值必须是数值类型');
+            $fieldStrings[] = "`$key`=`$key`+?";
+            $values[] = $value;
+            if($value<0) //减去一个值
+                $conds[$key] = -$value;
+        }
+        $fieldsString = implode(',', $fieldStrings);
+        $values[] = $id;
+
+        $condStrings = [];
+        foreach ($conds as $key => $value) {
+            $condStrings[] = "`$key`>?";
+            $values[] = $value;
+        }
+        $condsString = implode(' AND ', $condStrings);
+
+        $stmtString = "UPDATE `{$this->tableName}` SET $fieldsString WHERE `$primaryKey`=? AND $condsString";
+        $stmt = $this->prepareStmt($stmtString);
+        $stmt->execute($values);
+        return $stmt->rowCount();
+    }
+
+    /**
+     * 为指定字段增加/减小值, 并且结果值>=0
+     * @param $wheres array 例:['fid'=1,'uid'=2]会被展开成'WHERE fid=1 AND uid=2'
+     * @param array $fieldValues 包含要变化的值的键值对数组
+     * @return int 修改的行数
+     * @throws \Exception
+     */
+    public function increaseWhereNonnegatively(array $wheres, array $fieldValues)
+    {
+        $fieldStrings = [];
+        $values = [];
+        $conds = [];
+
+        foreach ($fieldValues as $key => $value) {
+            if(!(is_int($value) || is_float($value) || is_double($value)))
+                throw new \Exception('Inc的值必须是数值类型');
+            $fieldStrings[] = "`$key`=`$key`+?";
+            $values[] = $value;
+            if($value<0) //减去一个值
+                $conds[$key] = -$value;
+        }
+        $fieldsString = implode(',', $fieldStrings);
+
+        $whereKeys = [];
+        foreach ($wheres as $key=>$value) {
+            $whereKeys[] = "`$key`=?";
+            $values[] = $value;
+        }
+        $whereString = implode(' AND ', $whereKeys);
+
+        $condStrings = [];
+        foreach ($conds as $key => $value) {
+            $condStrings[] = "`$key`>?";
+            $values[] = $value;
+        }
+        $condsString = implode(' AND ', $condStrings);
+
+        $stmtString = "UPDATE `{$this->tableName}` SET $fieldsString WHERE $whereString AND $condsString";
         $stmt = $this->prepareStmt($stmtString);
         $stmt->execute($values);
         return $stmt->rowCount();
@@ -408,9 +510,18 @@ class Table //implements ArrayAccess
 
     /**
      * 相当于 TRUNCATE TABLE tablename
+     * @param $primaryKey string 主键名
      * @return int 删除的行数
      */
-    public function deleteAll()
+    public function deleteAll($primaryKey)
+    {
+        $stmtString = "DELETE FROM `{$this->tableName}`";// WHERE `$primaryKey` != 0";
+        $stmt = $this->prepareStmt($stmtString);
+        $stmt->execute();
+        return $stmt->rowCount();
+    }
+
+    public function truncate()
     {
         $stmtString = "TRUNCATE TABLE `{$this->tableName}`";
         $stmt = $this->prepareStmt($stmtString);
@@ -426,4 +537,20 @@ class Table //implements ArrayAccess
         elseif ($ret===0)
             echo 'return 0';
     }
+
+    public function beginTransaction()
+    {
+        $this->database->pdo->beginTransaction();
+    }
+
+    public function commit()
+    {
+        $this->database->pdo->commit();
+    }
+
+    public function rollBack()
+    {
+        $this->database->pdo->rollBack();
+    }
+
 }

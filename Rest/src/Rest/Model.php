@@ -15,7 +15,7 @@
 
 namespace WebGeeker\Rest;
 
-use \WebGeeker\Utils\TraitNullObject;
+//use \WebGeeker\Utils\TraitNullObject;
 
 /**
  * @class Model
@@ -40,7 +40,7 @@ abstract class Model
 
     //endregion
 
-    use TraitNullObject;
+//    use TraitNullObject;
     
     //region 属性
 
@@ -68,7 +68,7 @@ abstract class Model
     {
         $className = get_called_class();
         if (isset($tables[$className])==false) {
-            $tables[$className] = new Table(Database::getDefaultDB(), get_called_class());
+            $tables[$className] = new Table(Database::getDbForTable($className), $className);
         }
         return $tables[$className];
     }
@@ -109,7 +109,7 @@ abstract class Model
      * @param $fieldName string 字段名
      * @return int
      */
-    final public static function getFieldType($fieldName)
+    final protected static function getFieldType($fieldName)
     {
         if(isset(static::$fieldTypes[$fieldName])) //设置了类型
             return (int)static::$fieldTypes[$fieldName];
@@ -152,7 +152,10 @@ abstract class Model
             case self::FieldTypeBool:
                 if(is_bool($value)===false) {
                     if(is_string($value)) {
-                        if(trim($value)==='true')
+                        $value = strtolower(trim($value));
+                        if(is_numeric($value))
+                            $value = (bool)floatval($value);
+                        elseif(in_array($value, ['true', 'yes', 'y', 'on']))
                             $value = true;
                         else
                             $value = false;
@@ -284,6 +287,21 @@ abstract class Model
     }
 
     /**
+     * 设置指定的字段值, 会自动校正数据类型
+     * @param $fieldName string 字段名
+     * @param $value mixed 字段值
+     * @throws \Exception
+     */
+    public function setFieldValue($fieldName, $value)
+    {
+        if(in_array($fieldName, $this->getFieldNames())===false) {
+            throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 字段{$fieldName}不存在");
+        }
+
+        $this->$fieldName = self::correctFieldValue($fieldName, $value);
+    }
+
+    /**
      * 从数据库中读取的关联数组中*增量*加载数据（会自动转换数据类型）
      * **只加载 $dbRawData 中存在的键值对**
      * @param array $dbRawData 包含字段值的关联数组
@@ -293,31 +311,33 @@ abstract class Model
         if (count($dbRawData)===0)
             return;
 
+        $array = [];
         foreach (self::getFieldNames() as $key) {
             $value = @$dbRawData[$key];
             if($value===null)
                 continue;
-            $this->$key = self::correctFieldValue($key, $value);
+            $value = self::correctFieldValue($key, $value);
+            $this->$key = $value;
+            $array[$key] = $value;
         }
-        $this->dbRawData = $dbRawData;
+        $this->dbRawData = $array;
     }
 
     /**
      * 从提供的关联数组中*增量*加载数据（会自动转换数据类型）
+     * 数据一般来自getValidFieldValues, 不会作特别过滤
      * **只加载 $fieldValues 中存在的键值对**, 没有提供的字段保留原来值
      * 只加载self::getFieldNames()返回的那些字段，并且不包括参数$excludeFields所包含的字段
      * @param array $fieldValues 包含字段值的关联数组
      * @param array|null $excludeFields 要排除的字段。例：['password','phone']
      */
-    private function loadFromFieldValues(array $fieldValues, array $excludeFields=null)
+    public function loadFieldValues(array $fieldValues, array $excludeFields=null)
     {
         if (count($fieldValues)===0)
             return;
         $fieldNames = self::getFieldNames();
         if ($excludeFields!==null) {
-            if(is_array($excludeFields)===false)
-                $excludeFields = null;
-            else
+            if(is_array($excludeFields))
                 $fieldNames = array_diff($fieldNames, $excludeFields);
         }
 
@@ -329,25 +349,6 @@ abstract class Model
             $this->$key = self::correctFieldValue($key, $value);
         }
     }
-
-//    /**
-//     * 从提供的关联数组中*覆盖式*加载数据（会自动转换数据类型）
-//     * 对于 $fieldValues 中不存在的键, 按null进行重置
-//     * 只加载self::getFieldNames()返回的那些字段，并且不包括参数$excludeFields所包含的字段
-//     * @param array $fieldValues 包含字段值的关联数组
-//     */
-//    private function reloadFromFieldValues(array $fieldValues)
-//    {
-//        $fieldNames = self::getFieldNames();
-//
-//        foreach ($fieldNames as $key) {
-//            $value = @$fieldValues[$key];
-//            if ($value === null)
-//                $this->$key = null;
-//            else
-//                $this->$key = self::correctFieldValue($key, $value);
-//        }
-//    }
 
     /**
      * 从客户端提供的关联数组中*增量*加载数据（会自动转换数据类型）, 自动忽略客户端不可写字段
@@ -369,9 +370,7 @@ abstract class Model
         }
 
         if ($excludeFields !== null) {
-            if (is_array($excludeFields) === false)
-                $excludeFields = null;
-            else
+            if (is_array($excludeFields))
                 $fieldNames = array_diff($fieldNames, $excludeFields);
         }
         unset($fieldNames['createTime']);
@@ -387,52 +386,19 @@ abstract class Model
     }
 
 //    /**
-//     * 覆盖式加载这个函数没有存在的必要, 因为你可以重新new一个对象, 然后调用其 loadFieldValuesFromClient方法
-//     * 从客户端提供的关联数组中*覆盖式*加载数据（会自动转换数据类型）, 自动忽略客户端不可写字段
-//     * 对于 $fieldValues 中不存在的键, 按null进行重置
-//     * 只加载self::getFieldNames()返回的那些字段，并且不包括参数$excludeFields所包含的字段
-//     * @param array $fieldValues 包含字段值的关联数组
+//     * 从另一个Model复制数据, 只复制有效字段.
+//     * @param $model Model 源Model. 其类型必须与this的类型一致
 //     */
-//    public function reloadFieldValuesFromClient(array $fieldValues)
+//    public function copyValidFieldValuesOfModel($model)
 //    {
-//        $fieldNames = self::getFieldNames();
+//        if($model instanceof static === false)
+//            return;
 //
-//        $excludeFields = static::$unwritableFields;
-//
-//        if ($excludeFields !== null) {
-//            if (is_array($excludeFields) === false)
-//                $excludeFields = null;
-//            else
-//                $fieldNames = array_diff($fieldNames, $excludeFields);
-//        }
-//        unset($fieldNames['createTime']);
-//        unset($fieldNames['updateTime']);
-//
-//        foreach ($fieldNames as $key) {
-//            $value = @$fieldValues[$key];
-//            if ($value === null) {
-//                if($key != 'createTime')
-//                    $this->$key = null;
-//            }
-//            else
-//                $this->$key = self::correctFieldValue($key, $value);
+//        $fieldValues = $model->getValidFieldValues();
+//        foreach ($fieldValues as $fieldName => $value) {
+//            $this->$fieldName = $value;
 //        }
 //    }
-
-    /**
-     * 从另一个Model复制数据
-     * @param $model static 源Model
-     */
-    public function copyValidFieldValuesOfModel($model)
-    {
-        if($model instanceof static === false)
-            return;
-
-        $fieldValues = $model->getValidFieldValues();
-        foreach ($fieldValues as $fieldName => $value) {
-            $this->$fieldName = $value;
-        }
-    }
 
     //endregion
 
@@ -451,7 +417,7 @@ abstract class Model
         foreach ($fieldNames as $fieldName) {
             if(in_array($fieldName, $allowedFieldName)==false)
                 continue;
-            $values[$fieldName] = @$this->$fieldName;
+            $values[$fieldName] = self::correctFieldValue($fieldName, @$this->$fieldName);
         }
         return $values;
     }
@@ -464,7 +430,7 @@ abstract class Model
     {
         $fields = array();
         foreach (self::getFieldNames() as $fieldName) {
-            $fields[$fieldName] = @$this->$fieldName;
+            $fields[$fieldName] = self::correctFieldValue($fieldName, @$this->$fieldName);
         }
         return $fields;
     }
@@ -498,22 +464,23 @@ abstract class Model
                 if (isset($this->$fieldName) === false)
                     continue;
             }
-            $values[$fieldName] = @$this->$fieldName;
+            $values[$fieldName] = self::correctFieldValue($fieldName, @$this->$fieldName);
         }
         return $values;
     }
 
     /**
-     *  获取有效的字段值（值非null的字段）
+     * 获取有效的字段值（值非null的字段）
+     * 不会过滤返回的字段
      * @return array
      */
-    protected function getValidFieldValues()
+    public function getValidFieldValues()
     {
         $values = array();
         foreach (self::getFieldNames() as $fieldName) {
             $value = @$this->$fieldName;
             if($value!==null)
-                $values[$fieldName] = $value;
+                $values[$fieldName] = self::correctFieldValue($fieldName, $value);
         }
         return $values;
     }
@@ -533,7 +500,7 @@ abstract class Model
         foreach ($fieldNames as $fieldName) {
             $value = @$this->$fieldName;
             if($value!==null)
-                $values[$fieldName] = $value;
+                $values[$fieldName] = self::correctFieldValue($fieldName, $value);
         }
         return $values;
     }
@@ -543,45 +510,32 @@ abstract class Model
     //region 数据库操作--增
 
     /**
-     * @return string lastInsertId
+     * @return mixed lastInsertId
      * @throws \Exception
      */
     public function insert() //向数据库插入一条新记录
     {
         $values = $this->getValidFieldValues(); //获取有效键值对
         $allFieldNames = self::getFieldNames();
-        $now = time();
-        $hasCreateTime = false;
-        $hasUpdateTime = false;
+        $now = microtime(true);
         if (in_array('createTime', $allFieldNames)) {
             $values['createTime'] = $now;
             $hasCreateTime = true;
         }
+        else
+            $hasCreateTime = false;
         if (in_array('updateTime', $allFieldNames)) {
             $values['updateTime'] = $now;
             $hasUpdateTime = true;
         }
+        else
+            $hasUpdateTime = false;
 
         if (count($values) === 0)
             throw new \Exception(get_class($this) . "对象属性全为null");
 
         $id = static::getTable()->insert($values);
 
-        $pk = static::$primaryKey;
-        switch ($this->getFieldType($pk)) {
-            case self::FieldTypeInt32:
-                $id = (int)$id;
-                break;
-            case self::FieldTypeFloat:
-                $id = (float)$id;
-                break;
-            default:
-                break;
-        }
-        if ($pk == null) {
-            return $id;
-        }
-        $this->$pk = $id;
         if($hasCreateTime) {
             $key = 'createTime';
             $this->$key = $now;
@@ -590,12 +544,34 @@ abstract class Model
             $key = 'updateTime';
             $this->$key = $now;
         }
-        return $id;
+
+        $pk = static::$primaryKey;
+        if ($pk == null) {
+            return (int)$id;
+        }
+        else {
+            if($this->$pk)
+                return $this->$pk;
+            
+            switch ($this->getFieldType($pk)) {
+                case self::FieldTypeInt32:
+                    $id = (int)$id;
+                    break;
+                case self::FieldTypeString:
+                case self::FieldTypeChars:
+                    $id = (string)$id;
+                    break;
+                default:
+                    return $id;
+            }
+            $this->$pk = $id;
+            return $id;
+        }
     }
 
     /**
      * 如果记录不重复, 插入一条新数据; 如果重复, 则替换旧数据
-     * @return string lastInsertId
+     * @return mixed lastInsertId
      * @throws \Exception
      */
     public function insertOrReplace() //向数据库插入一条新记录
@@ -605,30 +581,117 @@ abstract class Model
             throw new \Exception(get_class($this) . "对象属性全为null");
 
         $allFieldNames = self::getFieldNames();
-        if (in_array('createTime', $allFieldNames))
-            $values['createTime'] = time();
-        if (in_array('updateTime', $allFieldNames))
-            $values['updateTime'] = time();
+        $now = microtime(true);
+        if (in_array('createTime', $allFieldNames)) {
+            $values['createTime'] = $now;
+            $hasCreateTime = true;
+        }
+        else
+            $hasCreateTime = false;
+        if (in_array('updateTime', $allFieldNames)) {
+            $values['updateTime'] = $now;
+            $hasUpdateTime = true;
+        }
+        else
+            $hasUpdateTime = false;
 
         $id = static::getTable()->insertOrReplace($values);
 
-        $pk = static::$primaryKey;
-        switch ($this->getFieldType($pk)) {
-            case self::FieldTypeInt32:
-                $id = (int)$id;
-                break;
-            case self::FieldTypeFloat:
-                $id = (float)$id;
-                break;
-            default:
-                break;
+        if($hasCreateTime) {
+            $key = 'createTime';
+            $this->$key = $now;
         }
-        if($pk==null) {
+        if($hasUpdateTime){
+            $key = 'updateTime';
+            $this->$key = $now;
+        }
+
+        $pk = static::$primaryKey;
+        if ($pk == null) {
+            return (int)$id;
+        }
+        else {
+            if($this->$pk)
+                return $this->$pk;
+
+            switch ($this->getFieldType($pk)) {
+                case self::FieldTypeInt32:
+                    $id = (int)$id;
+                    break;
+                case self::FieldTypeString:
+                case self::FieldTypeChars:
+                    $id = (string)$id;
+                    break;
+                default:
+                    return $id;
+            }
+            $this->$pk = $id;
             return $id;
         }
-        $this->$pk = $id;
-        return $id;
+    }
 
+    /**
+     * 如果记录不重复, 插入一条新数据; 如果重复, 则什么也不做
+     * @return mixed|null 返回lastInsertId; 如果记录已存在,则返回null
+     * @throws \Exception
+     */
+    public function insertOrIgnore() //向数据库插入一条新记录
+    {
+        $values = $this->getValidFieldValues(); //获取有效键值对
+        if (count($values) === 0)
+            throw new \Exception(get_class($this) . "对象属性全为null");
+
+        $allFieldNames = self::getFieldNames();
+        $now = microtime(true);
+        if (in_array('createTime', $allFieldNames)) {
+            $values['createTime'] = $now;
+            $hasCreateTime = true;
+        }
+        else
+            $hasCreateTime = false;
+        if (in_array('updateTime', $allFieldNames)) {
+            $values['updateTime'] = $now;
+            $hasUpdateTime = true;
+        }
+        else
+            $hasUpdateTime = false;
+
+        $id = static::getTable()->insertOrIgnore($values);
+
+        if($id===null) //ignored
+            return null;
+
+        if($hasCreateTime) {
+            $key = 'createTime';
+            $this->$key = $now;
+        }
+        if($hasUpdateTime){
+            $key = 'updateTime';
+            $this->$key = $now;
+        }
+
+        $pk = static::$primaryKey;
+        if ($pk == null) {
+            return (int)$id;
+        }
+        else {
+            if($this->$pk)
+                return $this->$pk;
+
+            switch ($this->getFieldType($pk)) {
+                case self::FieldTypeInt32:
+                    $id = (int)$id;
+                    break;
+                case self::FieldTypeString:
+                case self::FieldTypeChars:
+                    $id = (string)$id;
+                    break;
+                default:
+                    return $id;
+            }
+            $this->$pk = $id;
+            return $id;
+        }
     }
 
     //endregion
@@ -638,30 +701,38 @@ abstract class Model
     /**
      * 保存指定的字段值。
      * ID字段必须要有效值，否则不能保存
-     * @param array $fieldNames
+     * @param array $fieldNames 要保存的字段名列表
+     * @param array $wheres 修改条件, 不得包含主键或$uniqueIndices中的字段. 例: ['status' => Order::StatusPaid]
      * @return int 受影响的行数。0或1
      * @throws \Exception
      */
-    public function saveByFieldNames(array $fieldNames)
+    public function saveByFieldNames(array $fieldNames, array $wheres=null)
     {
+        // 获取要保存的键值对
+        $values = $this->getFieldValuesByNames($fieldNames);
+        if (count($values) === 0) // 没有提供有效字段
+            throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有提供有效字段，无法保存");;
+        unset($values['createTime']);
+        if (in_array('updateTime', self::getFieldNames()))
+            $values['updateTime'] = microtime(true);
+
+        // 生成保存条件$wheres
         $pk = static::$primaryKey;
         if($pk==null) //没有主键（不是主键没有值）
         {
-            if (static::$uniqueIndices === null) // 也没有唯一索引
+            if (static::$uniqueIndices === null || count(static::$uniqueIndices)===0) // 也没有唯一索引
                 throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有主键，也没有唯一索引，无法保存");
-            $wheres = $this->getFieldValuesByNames(static::$uniqueIndices);
-            foreach (static::$uniqueIndices as $index) {
-                if (in_array($index, $fieldNames)) // 提供的字段列表中包含唯一索引，自动剔除
-                    $fieldNames = array_diff($fieldNames, [$index]);
-            }
-            $values = $this->getFieldValuesByNames($fieldNames);
-            if (count($values) === 0) // 没有提供有效字段
-                throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有提供有效字段，无法保存");
 
-            unset($values['createTime']);
-            if (in_array('updateTime', self::getFieldNames()))
-                $values['updateTime'] = time();
-            return static::getTable()->updateWhere($wheres, $values);
+            if(count($wheres)) {
+                foreach (static::$uniqueIndices as $index) {
+                    if(in_array($index, $wheres))
+                        throw new \Exception('保存条件中不能包含唯一索引$uniqueIndices中字段, 因为该Model没有主键, 所以只能用$uniqueIndices做为唯一ID来使用的');
+                }
+
+                $wheres = array_merge($this->getFieldValuesByNames(static::$uniqueIndices), $wheres);
+            }
+            else
+                $wheres = $this->getFieldValuesByNames(static::$uniqueIndices);
         }
         else // 有主键的情况
         {
@@ -669,17 +740,19 @@ abstract class Model
             if ($id === null) //没有设置ID，无法保存
                 throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 主键没有值，无法保存");;
 
-            if (in_array($pk, $fieldNames)) // 提供的字段列表中包含主键，自动剔除
-                $fieldNames = array_diff($fieldNames, [$pk]);
-            $values = $this->getFieldValuesByNames($fieldNames);
-            if (count($values) === 0) // 没有提供有效字段
-                throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有提供有效字段，无法保存");;
-
-            unset($values['createTime']);
-            if (in_array('updateTime', self::getFieldNames()))
-                $values['updateTime'] = time();
-            return static::getTable()->update($pk, $id, $values);
+            if(count($wheres)){
+                if(isset($wheres[$pk]))
+                    throw new \Exception('保存条件中不能包含主键');
+                $wheres[$pk] = $id;
+            }
+            else
+                $wheres = [$pk=>$id];
         }
+        array_walk($wheres, function (&$value, $key) {
+            $value = self::correctFieldValue($key, $value);
+        });
+
+        return static::getTable()->updateWhere($wheres, $values);
     }
 
     /**
@@ -693,7 +766,7 @@ abstract class Model
         $pk = static::$primaryKey;
         if($pk==null) //没有主键（不是主键没有值）
         {
-            if (static::$uniqueIndices === null) // 也没有唯一索引
+            if (static::$uniqueIndices === null || count(static::$uniqueIndices)===0) // 也没有唯一索引
                 throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有主键，也没有唯一索引，无法保存");
             $wheres = $this->getFieldValuesByNames(static::$uniqueIndices);
             $values = $this->getValidFieldValues();
@@ -705,7 +778,7 @@ abstract class Model
 
             unset($values['createTime']);
             if (in_array('updateTime', self::getFieldNames()))
-                $values['updateTime'] = time();
+                $values['updateTime'] = microtime(true);
             return static::getTable()->updateWhere($wheres, $values);
         }
         else // 有主键的情况
@@ -719,7 +792,7 @@ abstract class Model
                 throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有设置主键的值，无法保存");;
             unset($values['createTime']);
             if (in_array('updateTime', self::getFieldNames()))
-                $values['updateTime'] = time();
+                $values['updateTime'] = microtime(true);
             return static::getTable()->update($pk, $id, $values);
         }
     }
@@ -729,7 +802,7 @@ abstract class Model
         $pk = static::$primaryKey;
         if($pk==null) //没有主键（不是主键没有值）
         {
-            if (static::$uniqueIndices === null) // 也没有唯一索引
+            if (static::$uniqueIndices === null || count(static::$uniqueIndices)===0) // 也没有唯一索引
                 throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有主键，也没有唯一索引，无法保存");
             $wheres = $this->getFieldValuesByNames(static::$uniqueIndices);
             $values = $this->getAllFieldValues();
@@ -741,7 +814,7 @@ abstract class Model
 
             unset($values['createTime']);
             if (in_array('updateTime', self::getFieldNames()))
-                $values['updateTime'] = time();
+                $values['updateTime'] = microtime(true);
             return static::getTable()->updateWhere($wheres, $values);
         }
         else // 有主键的情况
@@ -755,7 +828,7 @@ abstract class Model
                 throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有设置主键的值，无法保存");;
             unset($values['createTime']);
             if (in_array('updateTime', self::getFieldNames()))
-                $values['updateTime'] = time();
+                $values['updateTime'] = microtime(true);
             return static::getTable()->update($pk, $id, $values);
         }
     }
@@ -771,7 +844,7 @@ abstract class Model
         $pk = static::$primaryKey;
         if($pk==null) //没有主键（不是主键没有值）
         {
-            if (static::$uniqueIndices === null) // 也没有唯一索引
+            if (static::$uniqueIndices === null || count(static::$uniqueIndices)===0) // 也没有唯一索引
                 throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有主键，也没有唯一索引，无法保存");
             $wheres = $this->getFieldValuesByNames(static::$uniqueIndices);
             $values = $this->getModifiedFieldValues();
@@ -788,7 +861,7 @@ abstract class Model
 
             unset($values['createTime']);
             if (in_array('updateTime', self::getFieldNames()))
-                $values['updateTime'] = time();
+                $values['updateTime'] = microtime(true);
             return static::getTable()->updateWhere($wheres, $values);
         }
         else // 有主键的情况
@@ -809,7 +882,7 @@ abstract class Model
                 throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有设置主键的值，无法保存");;
             unset($values['createTime']);
             if (in_array('updateTime', self::getFieldNames()))
-                $values['updateTime'] = time();
+                $values['updateTime'] = microtime(true);
             return static::getTable()->update($pk, $id, $values);
         }
     }
@@ -842,7 +915,7 @@ abstract class Model
         $pk = static::$primaryKey;
         if($pk==null) //没有主键（不是主键没有值）
         {
-            if (static::$uniqueIndices === null) // 也没有唯一索引
+            if (static::$uniqueIndices === null || count(static::$uniqueIndices)===0) // 也没有唯一索引
                 throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有主键，也没有唯一索引，无法保存");
             $wheres = $this->getFieldValuesByNames(static::$uniqueIndices);
 
@@ -853,7 +926,7 @@ abstract class Model
 
             unset($values['createTime']);
             if (in_array('updateTime', self::getFieldNames()))
-                $values['updateTime'] = time();
+                $values['updateTime'] = microtime(true);
             $rowsCount = static::getTable()->increaseWhereNonnegatively($wheres, $values);
         }
         else // 有主键的情况
@@ -869,7 +942,7 @@ abstract class Model
 
             unset($values['createTime']);
             if (in_array('updateTime', self::getFieldNames()))
-                $values['updateTime'] = time();
+                $values['updateTime'] = microtime(true);
             $rowsCount = static::getTable()->increaseNonnegatively($pk, $id, $values);
         }
 
@@ -888,7 +961,7 @@ abstract class Model
         if($pk==null) //没有主键（不是主键没有值）
         {
             if (static::$uniqueIndices === null) // 也没有唯一索引
-                throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有主键，也没有唯一索引键，无法保存");
+                throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有主键，也没有唯一索引键，无法删除");
             $wheres = $this->getFieldValuesByNames(static::$uniqueIndices);
             return static::getTable()->deleteByFields($wheres);
         }
@@ -954,8 +1027,9 @@ abstract class Model
     //region 数据库操作--查
 
     /**
+     * 统计符合条件的记录个数
      * @param $fields array 格式['field1'=>$value1, 'field2'=>$value2, ...];
-     * @return bool
+     * @return int
      * @throws \Exception
      */
     public static function countByFields($fields)
@@ -963,6 +1037,12 @@ abstract class Model
         return static::getTable()->countByFields($fields);
     }
 
+    /**
+     * 检测指定Id的记录是否存在
+     * @param $id
+     * @return bool
+     * @throws \Exception
+     */
     public static function existsWithId($id)
     {
         $pk = static::$primaryKey;
@@ -975,6 +1055,11 @@ abstract class Model
         return static::getTable()->existsWithFieldValue($pk, $id);
     }
 
+    /**
+     * @param $id
+     * @return null|static
+     * @throws \Exception
+     */
     public static function findById($id)
     {
         $pk = static::$primaryKey;
@@ -986,7 +1071,7 @@ abstract class Model
             throw new \Exception(get_called_class() . '::' . __FUNCTION__ . "(): ID不可为null");
         $rawData = static::getTable()->findByField($pk, $id);
         if($rawData===null)
-            return static::getNullObject();
+            return null;//static::getNullObject();
         $model = new static;
         $model->loadFromDBRawData($rawData);
         return $model;
@@ -1030,11 +1115,17 @@ abstract class Model
         return $models;
     }
 
+    /**
+     * @param $field
+     * @param $value
+     * @return null|static
+     * @throws \Exception
+     */
     public static function findByField($field, $value)
     {
         $rawData = static::getTable()->findByField($field, $value);
         if($rawData===null)
-            return static::getNullObject();
+            return null;//static::getNullObject();
         $model = new static;
         $model->loadFromDBRawData($rawData);
         return $model;
@@ -1042,14 +1133,14 @@ abstract class Model
 
     /**
      * @param $fields array 格式['field1'=>$value1, 'field2'=>$value2, ...];
-     * @return static
+     * @return null|static
      * @throws \Exception
      */
     public static function findByFields($fields)
     {
         $rawData = static::getTable()->findByFields($fields);
         if($rawData===null)
-            return static::getNullObject();
+            return null;//static::getNullObject();
         $model = new static;
         $model->loadFromDBRawData($rawData);
         return $model;
@@ -1060,14 +1151,14 @@ abstract class Model
      * @param $fields array 格式['field1'=>$value1, 'field2'=>$value2, ...];
      * @param $increaseField string 要增加的字段名
      * @param $deltaValue int 要增加的数值, 可正可负
-     * @return static
+     * @return null|static
      * @throws \Exception
      */
     public static function findAndIncreaseByFields($fields, $increaseField, $deltaValue)
     {
         $rawData = static::getTable()->findAndIncreaseByFields($fields, $increaseField, $deltaValue);
         if($rawData===null)
-            return static::getNullObject();
+            return null;//static::getNullObject();
         $model = new static;
         $model->loadFromDBRawData($rawData);
         return $model;
@@ -1082,7 +1173,7 @@ abstract class Model
     {
         $rawDatas = static::getTable()->findAllByFields($fields);
         if(count($rawDatas)==0)
-            return [];//static::getNullObject();
+            return [];
         $models = [];
         foreach ($rawDatas as $rawData) {
             $model = new static;

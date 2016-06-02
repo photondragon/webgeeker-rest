@@ -38,4 +38,48 @@ class Controller
 //        $this->result = $result;
     }
 
+    public static function dispatch($controllerName, $action, IRequest $request, IResponse $response)
+    {
+        if (strlen($action) === 0)
+            $action = 'index';
+        $actionName = lcfirst($action) . 'Action';
+
+        ob_start(); //打开缓冲区，接收所有echo输出
+
+        try {
+            $controller = self::createController($controllerName, $request, $response);
+            $controller->$actionName();
+        } catch (\Exception $e) {
+            echo $e->getMessage();
+        }
+
+        $echo = ob_get_contents(); //获取所有echo输出
+        ob_end_clean();
+
+        $response->getBody()->write($echo);
+        $response = $response->withHeader('Content-Type', 'text/plain');
+        return $response;
+    }
+
+    /**
+     * @param $controllerName string
+     * @param IRequest $request
+     * @param IResponse $response
+     * @return Controller
+     * @throws \Exception
+     */
+    private static function createController($controllerName, IRequest $request, IResponse $response)
+    {
+        if(strlen($controllerName)==0)
+            throw new \Exception('参数controllerName无效');
+        $controllerName = ucfirst($controllerName) . 'Controller';
+        try {
+            $controller = new $controllerName($request, $response);
+        } catch (\Exception $e) {
+            throw new \Exception("找不控制器$controllerName");
+        }
+        if($controller instanceof Controller)
+            return $controller;
+        throw new \Exception('无效的控制器' . $controllerName);
+    }
 }

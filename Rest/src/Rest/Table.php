@@ -129,11 +129,11 @@ class Table //implements ArrayAccess
         $condition = '';
         foreach ($fields as $field => $value) {
             if ($isFirst) {
-                $condition = "$field=?";
+                $condition = "`$field`=?";
                 $isFirst = false;
             }
             else
-                $condition .= " AND $field=?";
+                $condition .= " AND `$field`=?";
             $params[] = $value;
         }
 
@@ -162,11 +162,11 @@ class Table //implements ArrayAccess
         $condition = '';
         foreach ($fields as $field => $value) {
             if ($isFirst) {
-                $condition = "$field=:$field";
+                $condition = "`$field`=:$field";
                 $isFirst = false;
             }
             else {
-                $condition .= " AND $field=:$field";
+                $condition .= " AND `$field`=:$field";
             }
             $params[$field] = $value;
         }
@@ -199,11 +199,11 @@ class Table //implements ArrayAccess
         $condition = '';
         foreach ($fields as $field => $value) {
             if ($isFirst) {
-                $condition = "$field=?";
+                $condition = "`$field`=?";
                 $isFirst = false;
             }
             else
-                $condition .= " AND $field=?";
+                $condition .= " AND `$field`=?";
             $params[] = $value;
         }
 
@@ -229,11 +229,11 @@ class Table //implements ArrayAccess
         $condition = '';
         foreach ($fields as $field => $value) {
             if ($isFirst) {
-                $condition = "$field=?";
+                $condition = "`$field`=?";
                 $isFirst = false;
             }
             else
-                $condition .= " AND $field=?";
+                $condition .= " AND `$field`=?";
             $params[] = $value;
         }
 
@@ -256,6 +256,31 @@ class Table //implements ArrayAccess
         return $infos;
     }
 
+    static private function correctValue($value)
+    {
+        $type = gettype($value);
+        if($type==='array' || $type==='object')
+            return json_encode($value, JSON_PRESERVE_ZERO_FRACTION);
+//        else if($type==='double') {
+//            $decimals = 16; //小数点后的位数
+//            if($value<1 && $value>-1) //如果整数部分是0, 则要提高小数点后的位数
+//            {
+//                $value2 = $value*100000;
+//                $decimals += 5;
+//                while($value2>-1 && $value2<1)
+//                {
+//                    $value2 *= 100000;
+//                    $decimals +=5;
+//                }
+//            }
+//            $v = number_format($value, $decimals, '.', '');
+//            return $v;
+//        }
+        else if($type==='boolean') // mysql中bool用tinyint存储, sqlite中bool用boolean存储
+            return $value ? 1 : 0;
+        return $value;
+    }
+
     /**
      * @param array $fields 要保存的字段，格式['field1'=>$value1, 'field2'=>$value2, ...]
      * @return string 插入的ID
@@ -267,11 +292,7 @@ class Table //implements ArrayAccess
         $fieldValues = [];
         array_walk($fields, function(&$value, $key) use(&$fieldNames, &$fieldValues){
             $fieldNames[] = $key;
-            $type = gettype($value);
-            if($type==='array' || $type==='object')
-                $fieldValues[$key] = json_encode($value);
-            else
-                $fieldValues[$key] = $value;
+            $fieldValues[$key] = Table::correctValue($value);
         });
         $fieldsString = implode('`,`', $fieldNames);
         $valuesString = ':' . implode(',:', $fieldNames);
@@ -294,11 +315,7 @@ class Table //implements ArrayAccess
         array_walk($fields, function(&$value, $key) use(&$fieldNames, &$fieldValues, &$updates){
             $fieldNames[] = $key;
             $updates[] = "$key=:{$key}2";
-            $type = gettype($value);
-            if($type==='array' || $type==='object')
-                $fieldValues[$key] = json_encode($value);
-            else
-                $fieldValues[$key] = $value;
+            $fieldValues[$key] = Table::correctValue($value);
             $fieldValues[$key.'2'] = $fieldValues[$key];
         });
         $fieldsString = implode('`,`', $fieldNames);
@@ -310,17 +327,36 @@ class Table //implements ArrayAccess
         return $this->database->pdo->lastInsertId();
     }
 
+    /**
+     * @param array $fields 要保存的字段，格式['field1'=>$value1, 'field2'=>$value2, ...]
+     * @return string|null 插入的ID; 如果ignored, 返回null
+     * @throws \Exception
+     */
+    function insertOrIgnore(array $fields)
+    {
+        $fieldNames = [];
+        $fieldValues = [];
+        array_walk($fields, function(&$value, $key) use(&$fieldNames, &$fieldValues){
+            $fieldNames[] = $key;
+            $fieldValues[$key] = Table::correctValue($value);
+        });
+        $fieldsString = implode('`,`', $fieldNames);
+        $valuesString = ':' . implode(',:', $fieldNames);
+        $stmtString = "INSERT IGNORE INTO `{$this->tableName}`(`$fieldsString`) VALUES($valuesString)";
+        $stmt = $this->prepareStmt($stmtString);
+        $stmt->execute($fieldValues);
+        if($stmt->rowCount()===0) //ignored
+            return null;
+        return $this->database->pdo->lastInsertId();
+    }
+
     public function update($primaryKey, $id, array $fieldValues)
     {
         $fieldStrings = [];
         $values = [];
         array_walk($fieldValues, function(&$value, $key) use(&$fieldStrings, &$values){
             $fieldStrings[] = "$key=?";
-            $type = gettype($value);
-            if($type==='array' || $type==='object')
-                $values[] = json_encode($value);
-            else
-                $values[] = $value;
+            $values[] = Table::correctValue($value);
         });
         $values[] = $id;
         $fieldsString = implode(',', $fieldStrings);
@@ -341,11 +377,7 @@ class Table //implements ArrayAccess
         $values = [];
         array_walk($fieldValues, function(&$value, $key) use(&$fieldStrings, &$values){
             $fieldStrings[] = "`$key`=?";
-            $type = gettype($value);
-            if($type==='array' || $type==='object')
-                $values[] = json_encode($value);
-            else
-                $values[] = $value;
+            $values[] = Table::correctValue($value);
         });
         $whereKeys = [];
         foreach ($wheres as $key=>$value) {
@@ -378,7 +410,7 @@ class Table //implements ArrayAccess
             if(!(is_int($value) || is_float($value) || is_double($value)))
                 throw new \Exception('Inc的值必须是数值类型');
             $fieldStrings[] = "`$key`=`$key`+?";
-            $values[] = $value;
+            $values[] = Table::correctValue($value);
             if($value<0) //减去一个值
                 $conds[$key] = -$value;
         }
@@ -388,7 +420,7 @@ class Table //implements ArrayAccess
         $condStrings = [];
         foreach ($conds as $key => $value) {
             $condStrings[] = "`$key`>?";
-            $values[] = $value;
+            $values[] = Table::correctValue($value);
         }
         $condsString = implode(' AND ', $condStrings);
 
@@ -415,7 +447,7 @@ class Table //implements ArrayAccess
             if(!(is_int($value) || is_float($value) || is_double($value)))
                 throw new \Exception('Inc的值必须是数值类型');
             $fieldStrings[] = "`$key`=`$key`+?";
-            $values[] = $value;
+            $values[] = Table::correctValue($value);
             if($value<0) //减去一个值
                 $conds[$key] = -$value;
         }
@@ -424,14 +456,14 @@ class Table //implements ArrayAccess
         $whereKeys = [];
         foreach ($wheres as $key=>$value) {
             $whereKeys[] = "`$key`=?";
-            $values[] = $value;
+            $values[] = Table::correctValue($value);
         }
         $whereString = implode(' AND ', $whereKeys);
 
         $condStrings = [];
         foreach ($conds as $key => $value) {
             $condStrings[] = "`$key`>?";
-            $values[] = $value;
+            $values[] = Table::correctValue($value);
         }
         $condsString = implode(' AND ', $condStrings);
 
@@ -529,13 +561,14 @@ class Table //implements ArrayAccess
         return $stmt->rowCount();
     }
 
+    /**
+     * @param $sql
+     * @return int 返回受影响的行数
+     * @throws \Exception 出错抛出异常
+     */
     public function executeSql($sql)
     {
-        $ret = $this->database->pdo->exec($sql);
-        if($ret===false)
-            $this->database->pdo->errorInfo();
-        elseif ($ret===0)
-            echo 'return 0';
+        return $this->database->executeSql($sql);
     }
 
     public function beginTransaction()

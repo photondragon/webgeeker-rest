@@ -26,6 +26,11 @@ interface IQueryConditionCompare extends IQueryCondition
     public function __construct($field, $op, $value); //例: new MysqlConditionCompare('id', '>', 0);
 }
 
+interface IQueryConditionIn extends IQueryCondition
+{
+    public function __construct($field, array $values); //例: new MysqlConditionIn('id', [1,2,3]);
+}
+
 interface IQueryConditionAnd extends IQueryCondition
 {
     public function addCondition(IQueryCondition $condition);
@@ -100,6 +105,13 @@ interface IQuery
      * @return IQueryConditionCompare
      */
     public function createConditionCompare($field, $op, $value);
+
+    /**
+     * @param $field
+     * @param array $values
+     * @return IQueryConditionIn
+     */
+    public function createConditionIn($field, array $values);
 
     /**
      * @return IQueryConditionAnd

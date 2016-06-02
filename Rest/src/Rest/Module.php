@@ -272,7 +272,7 @@ class Module
         }
 
         $result->debug($echo); //将所有echo输出作为debug信息返回
-        $result->debug(var_export(SimpleCookie::getCookies(), true));
+//        $result->debug(var_export(SimpleCookie::getCookies(), true));
         $response->getBody()->write($result->getJsonString());
         return $response;
     }

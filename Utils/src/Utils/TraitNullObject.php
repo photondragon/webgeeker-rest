@@ -25,7 +25,7 @@ trait TraitNullObject
 {
     protected static $nullObject; //null对象
 
-    private static function getNullObject() //返回一个null对象。
+    protected static function getNullObject() //返回一个null对象。
     {
         if (static::$nullObject === null)
             static::$nullObject = new static;

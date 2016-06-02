@@ -125,7 +125,7 @@ class MysqlQuery implements IQuery
     {
         $sql = "SELECT $this->select FROM `$tableName`";
         if (isset($this->where)) {
-            $where = $this->where;
+            $where = (string)$this->where;
             if (strlen($where)>0)
                 $sql .= " WHERE $where";
         }
@@ -179,6 +179,11 @@ class MysqlQuery implements IQuery
         return new MysqlConditionCompare($field, $op, $value);
     }
 
+    public function createConditionIn($field, array $values)
+    {
+        return new MysqlConditionIn($field, $values);
+    }
+
     /**
      * @param IQueryCondition $condition
      * @return IQueryConditionParenthesis
@@ -209,15 +214,56 @@ class MysqlConditionCompare implements IQueryConditionCompare
         $field = mysqlEscapeColumnString($this->field);
         $op = $this->operator;
         $value = $this->value;
-        if (is_string($value)) {
-            $value = mysqlEscapeString($value);
-            $value = "'$value'";
-        }
-        elseif (is_object($value)) {
-            $value = mysqlEscapeString($value . '');
-            $value = "'$value'";
-        }
+
+        $type = gettype($value);
+        if($type==='string')
+            $value = '\'' . mysqlEscapeString($value) . '\'';
+        else if($type==='boolean')
+            $value = $value ? 'true' : 'false';
+        else if($type==='NULL')
+            $value = 'NULL';
+        else if($type==='object')
+            throw new \Exception('IN(?,?,?)列表中只能包含标量');
+        else if($type==='array')
+            throw new \Exception('IN(?,?,?)列表中只能包含标量');
+
         return "`$field` $op $value";
+    }
+}
+
+class MysqlConditionIn implements IQueryConditionIn
+{
+    private $field;
+    private $values;
+
+    public function __construct($field, array $values)
+    {
+        if (strlen($field)===0 || count($values)===0)
+            throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 无效参数");
+        $this->field = $field;
+        $filtered = [];
+        foreach ($values as $value) {
+            $type = gettype($value);
+            if($type==='string')
+                $value = '\'' . mysqlEscapeString($value) . '\'';
+            else if($type==='boolean')
+                $value = $value ? 'true' : 'false';
+            else if($type==='NULL')
+                $value = 'NULL';
+            else if($type==='object')
+                throw new \Exception('IN(?,?,?)列表中只能包含标量');
+            else if($type==='array')
+                throw new \Exception('IN(?,?,?)列表中只能包含标量');
+            $filtered[] = $value;
+        }
+        $this->values = $values;
+    }
+
+    public function __toString()
+    {
+        $field = mysqlEscapeColumnString($this->field);
+        $valuesString = implode(',', $this->values);
+        return "`$field` IN($valuesString)";
     }
 }
 
@@ -250,7 +296,7 @@ class MysqlConditionAnd implements IQueryConditionAnd
     public function __toString()
     {
         if (count($this->conditions)===0)
-            throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): 没有有效条件");
+            return '';
         return (string)implode(' AND ', $this->conditions);
     }
 }

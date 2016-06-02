@@ -70,7 +70,7 @@ class Result
     {
         if($this->content===null)
             return '{}';
-        return json_encode($this->content, JSON_PRETTY_PRINT);
+        return json_encode($this->content, JSON_PRETTY_PRINT|JSON_PRESERVE_ZERO_FRACTION);
     }
 
     public function setCustomContent($key, $value){

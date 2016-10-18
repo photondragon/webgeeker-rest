@@ -40,7 +40,7 @@ class Auth
      */
     public static function checkLoginUid()
     {
-        $sessionKey = SimpleCookie::get('session');
+        $sessionKey = SimpleCookie::get('wg_session');
         $sessionKey = self::decrypt($sessionKey);
         $info = explode(',', $sessionKey);
         if (count($info)<3)
@@ -59,7 +59,7 @@ class Auth
      */
     public static function checkLoginUidWithShortToken()
     {
-        $sessionKey = SimpleCookie::get('session');
+        $sessionKey = SimpleCookie::get('wg_session');
         $sessionKey = self::decrypt($sessionKey);
         $info = explode(',', $sessionKey);
         if (count($info)<3)
@@ -108,8 +108,8 @@ class Auth
         $secretToken = "$uid," . ($now+self::$longTermTokenDuration) . ',' . rand(1000, 99999999);
         $sessionKey = self::encrypt($sessionKey);
         $secretToken = self::encrypt($secretToken);
-        SimpleCookie::set('session', $sessionKey, self::$longTermTokenDuration+60);
-        SimpleCookie::set('token', $secretToken, self::$longTermTokenDuration+60, true);
+        SimpleCookie::set('wg_session', $sessionKey, self::$longTermTokenDuration+60);
+        SimpleCookie::set('wg_token', $secretToken, self::$longTermTokenDuration+60, true);
     }
 
     /**
@@ -117,12 +117,8 @@ class Auth
      */
     public static function markAsLogout()
     {
-        SimpleCookie::remove('session');
-        SimpleCookie::remove('token', true);
-
-        SimpleCookie::remove('sessionKey');
-        SimpleCookie::remove('secretToken', true);
-        SimpleCookie::remove('secret', true);
+        SimpleCookie::remove('wg_session');
+        SimpleCookie::remove('wg_token', true);
     }
 
     public static function checkHttps()
@@ -134,7 +130,7 @@ class Auth
 
     public static function checkLoginUidSecretly()
     {
-        $secretToken = SimpleCookie::get('token');
+        $secretToken = SimpleCookie::get('wg_token');
         $secretToken = self::decrypt($secretToken);
         $info = explode(',', $secretToken);
         if (count($info)<2)

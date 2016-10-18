@@ -296,7 +296,7 @@ class Module
         $className = ucfirst($moduleName) . 'Api';
 
         if(class_exists($className)===false) //任务类不存在
-            throw new \Exception("找不模块$moduleName");
+            throw new \Exception("找不到模块$moduleName");
 
         try {
             $module = new $className($request, $response, $result);

@@ -31,6 +31,52 @@ class Database
     public $dbType;
     public $pdo;
 
+    private static $dbConfig;
+    private static $dbs = [];
+    private static $defaultDb = null; //默认的数据库（全局唯一）
+
+
+    /**
+     * 初始化所有数据库
+     * @param $dbConfig array 数据库配置信息, 其中必须包含一个'default'的项做为默认数据库
+     * @throws \Exception
+     */
+    public static function initDbs($dbConfig)
+    {
+        if(is_array($dbConfig)===false)
+            throw new \Exception('Database::initDbs(): 参数$dbConfig必须是array');
+        if(isset($dbConfig['default'])===false)
+            throw new \Exception('Database::initDbs(): 参数$dbConfig无效, $dbConfig["default"]不存在');
+        self::$dbConfig = $dbConfig;
+    }
+
+    /**
+     * @param string $dbCfgName 数据库配置名
+     * @param bool $restrict 是否是严格模式
+     * @return null|Database 返回$dbCfgName指定的数据库对象. 如果不存在, 当$restrict为true时, 返回null; 否则返回'default'数据库对象
+     */
+    public static function getDb($dbCfgName = 'default', $restrict = false)
+    {
+        if(isset(self::$dbs[$dbCfgName])===false)
+        {
+            if(isset(self::$dbConfig[$dbCfgName])){
+                $db = new Database(self::$dbConfig[$dbCfgName]);
+                self::$dbs[$dbCfgName] = $db;
+                return $db;
+            } else {
+                if($restrict)
+                    return null;
+                if (self::$defaultDb === null) {
+                    self::$defaultDb = new Database(self::$dbConfig['default']);
+                    self::$dbs['default'] = self::$defaultDb;
+                }
+                return self::$defaultDb;
+            }
+        }
+        else
+            return self::$dbs[$dbCfgName];
+    }
+
     public function __construct($dbParams)
     {
         if(count($dbParams)==0)
@@ -42,7 +88,7 @@ class Database
             $dbname = $dbParams['dbname'];
             $dbuser = $dbParams['dbuser'];
             $dbpass = $dbParams['dbpass'];
-            $dsn = "mysql:host={$dbhost};dbname={$dbname};charset=utf8";
+            $dsn = "mysql:host={$dbhost};dbname={$dbname};charset=utf8mb4";
             $this->pdo = new \PDO($dsn, $dbuser, $dbpass);
         }
         else if($dbtype==='sqlite'){
@@ -68,56 +114,6 @@ class Database
         if($ret===false) //如果配置PDO为抛出异常，则不会返回false.
             throw new \Exception($this->pdo->errorInfo());
         return $ret;
-    }
-
-    private static $defaultDb = null; //默认的数据库（全局唯一）
-
-//    /**
-//     * @return null|Database
-//     */
-//    public static function getDefaultDb() //获取默认的数据库（全局唯一），默认值是null
-//    {
-//        return self::$defaultDb;
-//    }
-
-    /**
-     * 设置默认的数据库
-     * 可以在程序初始化的时候设置。
-     * @param Database $database
-     */
-    public static function setDefaultDb(Database $database)
-    {
-        self::$defaultDb = $database;
-    }
-
-    private static $dbs = [];
-
-    /**
-     * 配置表对应的数据库
-     * @param Database $db
-     * @param $tableName string
-     * @throws \Exception
-     */
-    public static function setDbForTable(Database $db, $tableName)
-    {
-        if(strlen($tableName)===0)
-            throw new \Exception('Database::' . __FUNCTION__ . '(): 无效的参数$tableName');
-        if($db instanceof self === false)
-            throw new \Exception('Database::' . __FUNCTION__ . '(): 无效的参数$db');
-        self::$dbs[$tableName] = $db;
-    }
-
-    /**
-     * 根据表名获取对应的数据库, 如果没有配置, 则返回默认数据库
-     * @param $tableName string
-     * @return Database|null
-     */
-    public static function getDbForTable($tableName)
-    {
-        $db = @self::$dbs[$tableName];
-        if($db===null)
-            return self::$defaultDb;
-        return $db;
     }
 
 }

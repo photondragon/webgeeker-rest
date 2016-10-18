@@ -15,19 +15,6 @@
 
 namespace WebGeeker\Rest;
 
-function mysqlEscapeString($string)
-{
-    if(is_string($string))
-        return addcslashes($string, "\"'\\\r\n\t%_\0\x08");
-    throw new \Exception(__FUNCTION__ . "(): 无效参数");
-}
-function mysqlEscapeColumnString($string)
-{
-    if(is_string($string))
-        return addcslashes($string, "\"'\\\r\n\t\0\x08");
-    throw new \Exception(__FUNCTION__ . "(): 无效参数");
-}
-
 /**
  * @class MysqlQuery
  * @brief brief description
@@ -39,6 +26,7 @@ class MysqlQuery implements IQuery
     protected $select = '*';
     protected $where;
     protected $orderBys = [];
+    protected $sortFields = [];
     protected $offset = 0;
     protected $count = 0; //0表示全部
 
@@ -52,7 +40,7 @@ class MysqlQuery implements IQuery
             if(strlen($fields)===0)
                 $this->select = '*';
             else
-                $this->select = mysqlEscapeColumnString($fields);
+                $this->select = MysqlQuery::sqlEscapeColumnName($fields);
             return;
         }
         elseif (is_array($fields))
@@ -64,11 +52,11 @@ class MysqlQuery implements IQuery
             }
             else {
                 $invalidField = false;
-                array_walk($fields, function (&$value) use (&$invalidField) {
-                    if (is_string($value) === false)
+                array_walk($fields, function (&$fieldName) use (&$invalidField) {
+                    if (is_string($fieldName) === false)
                         $invalidField = true;
                     else
-                        $value = mysqlEscapeColumnString($value);
+                        $fieldName = MysqlQuery::sqlEscapeColumnName($fieldName);
                 });
                 if ($invalidField === false) {
                     $this->select = implode(',', $fields);
@@ -89,19 +77,33 @@ class MysqlQuery implements IQuery
      * 设置排序字段. 可以分多次设置多个排序字段
      * 相当于Mysql中的ORDER BY
      * @param $fieldName
-     * @param string $order 三种取值: 'asc'-升序, 'desc'-降序, ''-无
+     * @param int $order 三种取值: OrderAsc-升序, OrderDesc-降序, OrderNone-默认排序
      */
-    public function orderBy($fieldName, $order = '')
+    public function orderBy($fieldName, $order = self::OrderNone)
     {
         if(strlen($fieldName)){
-            $o = '';
             if(strtolower($order)==='asc')
-                $o = ' ASC';
+                $order = self::OrderAsc;
             elseif(strtolower($order)==='desc')
-                $o = ' DESC';
-
-            $this->orderBys[] = "`$fieldName`$o";
+                $order = self::OrderDesc;
+            elseif($order==='')
+                $order = self::OrderNone;
+            else
+                return;
+            if($order === self::OrderAsc)
+                $this->orderBys[] = "`$fieldName` ASC";
+            elseif($order === self::OrderDesc)
+                $this->orderBys[] = "`$fieldName` DESC";
+            elseif($order === self::OrderNone)
+                $this->orderBys[] = "`$fieldName`";
+            else
+                return;
+            $this->sortFields[] = [$fieldName, $order];
         }
+    }
+
+    public function getSortFields(){
+        return $this->sortFields;
     }
 
     /**
@@ -117,8 +119,17 @@ class MysqlQuery implements IQuery
             $offset = 0;
         if($count<0)
             $count = 0;
+        if($count>100000)
+            $count = 100000;
         $this->offset = $offset;
         $this->count = $count;
+    }
+
+    public function getCount(){
+        return $this->count;
+    }
+    public function getOffset(){
+        return $this->offset;
     }
 
     public function getQueryString($tableName)
@@ -192,6 +203,37 @@ class MysqlQuery implements IQuery
     {
         return new MysqlConditionParenthesis($condition);
     }
+
+    public static function sqlEscapeColumnName($string)
+    {
+        if(is_string($string))
+            return addcslashes($string, "\"'\\\r\n\t\0\x08");
+        throw new \Exception(__FUNCTION__ . "(): 无效参数");
+    }
+
+    /**
+     * 将各种数值转换成字符串, 用于拼接sql的Where子句
+     * @param $value
+     * @return string
+     * @throws \Exception
+     */
+    public static function sqlEscapeValueForWhereClause($value)
+    {
+        $type = gettype($value);
+        if($type==='string')
+            $value = '\'' . addcslashes($value, "\"'\\\r\n\t%_\0\x08") . '\'';
+        else if($type==='boolean')
+            $value = $value ? 'true' : 'false';
+        else if($type==='NULL')
+            $value = 'NULL';
+        else if($type==='object')
+            throw new \Exception('WHERE子句中只能包含标量值');
+        else if($type==='array')
+            throw new \Exception('WHERE子句中只能包含标量值');
+        else  // 整型浮点型
+            $value = (string)$value;
+        return $value;
+    }
 }
 
 class MysqlConditionCompare implements IQueryConditionCompare
@@ -211,23 +253,10 @@ class MysqlConditionCompare implements IQueryConditionCompare
 
     public function __toString()
     {
-        $field = mysqlEscapeColumnString($this->field);
+        $field = MysqlQuery::sqlEscapeColumnName($this->field);
         $op = $this->operator;
-        $value = $this->value;
-
-        $type = gettype($value);
-        if($type==='string')
-            $value = '\'' . mysqlEscapeString($value) . '\'';
-        else if($type==='boolean')
-            $value = $value ? 'true' : 'false';
-        else if($type==='NULL')
-            $value = 'NULL';
-        else if($type==='object')
-            throw new \Exception('IN(?,?,?)列表中只能包含标量');
-        else if($type==='array')
-            throw new \Exception('IN(?,?,?)列表中只能包含标量');
-
-        return "`$field` $op $value";
+        $valueString = MysqlQuery::sqlEscapeValueForWhereClause($this->value);
+        return "`$field` $op $valueString";
     }
 }
 
@@ -243,25 +272,14 @@ class MysqlConditionIn implements IQueryConditionIn
         $this->field = $field;
         $filtered = [];
         foreach ($values as $value) {
-            $type = gettype($value);
-            if($type==='string')
-                $value = '\'' . mysqlEscapeString($value) . '\'';
-            else if($type==='boolean')
-                $value = $value ? 'true' : 'false';
-            else if($type==='NULL')
-                $value = 'NULL';
-            else if($type==='object')
-                throw new \Exception('IN(?,?,?)列表中只能包含标量');
-            else if($type==='array')
-                throw new \Exception('IN(?,?,?)列表中只能包含标量');
-            $filtered[] = $value;
+            $filtered[] = MysqlQuery::sqlEscapeValueForWhereClause($value);
         }
-        $this->values = $values;
+        $this->values = $filtered;
     }
 
     public function __toString()
     {
-        $field = mysqlEscapeColumnString($this->field);
+        $field = MysqlQuery::sqlEscapeColumnName($this->field);
         $valuesString = implode(',', $this->values);
         return "`$field` IN($valuesString)";
     }

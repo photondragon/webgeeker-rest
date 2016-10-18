@@ -74,13 +74,17 @@ interface IQuery
      */
     public function where(IQueryCondition $condition);
 
+    const OrderNone = 0; // 默认排序
+    const OrderAsc = 1; // 升序
+    const OrderDesc = 2; // 降序
     /**
      * 设置排序字段. 可以分多次设置多个排序字段
      * 相当于Mysql中的ORDER BY
      * @param $fieldName
-     * @param string $order 三种取值: 'asc'-升序, 'desc'-降序, ''-无
+     * @param int $order 三种取值: OrderAsc-升序, OrderDesc-降序, OrderNone-默认排序
      */
-    public function orderBy($fieldName, $order = '');
+    public function orderBy($fieldName, $order = self::OrderNone);
+    public function getSortFields();
 
     /**
      * 设置截取结果集中的一段
@@ -90,6 +94,8 @@ interface IQuery
      * @param $offset int 起始位置
      */
     public function segment($count, $offset = 0);
+    public function getCount();
+    public function getOffset();
 
     /**
      * 获取最终的查询字符串

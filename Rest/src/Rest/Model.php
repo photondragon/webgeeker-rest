@@ -35,7 +35,7 @@ abstract class Model
     const FieldTypeBool = 5; //Bool. 默认值为false
     const FieldTypeList = 6; //数组. 默认值为null. (java的List, php的普通数组, js的Array, objc的NSArray)
     const FieldTypeMap = 7; //映射(键值对集合). 默认值为null. (java的Map, php的关联数据, js的对象, objc里的NSDictionary)
-    const FieldTypeChars = 8; //定长字符串(不建议使用)，相当Mysql的CHAR(n). 默认值为空串""。最大255
+    const FieldTypeChars = 8; //定长字符串(不建议使用)，相当Mysql的CHAR(n). 默认值为空串""。最大 180
 //    const FieldTypeLongText = 9; //长文本(不建议使用)，不支持索引，相当Mysql的longtext，最大2^32-1
 
     //endregion
@@ -46,16 +46,26 @@ abstract class Model
 
     //以下是类唯一属性。以延迟静态绑定（static::$xxx）的方式访问，子类可以覆盖这些属性
     protected static $primaryKey = 'id'; //主键，默认'id'
-    protected static $uniqueIndices = null; //唯一索引. 例: ['fid', 'uid']
+    protected static $uniqueIndices = null; //联合主键（多列唯一索引）. 例: ['fid', 'uid']
+
+    protected static $autoIncrementKey; // 具有自增属性的key. 设计这个属性原本是给底层的分片系统使用的
+    /**
+     * 设计这个属性原本是给底层的分片系统使用的
+     * 取值示例（假设有一个Empolyee表）:
+     * [
+     *     ['id'],                    // 主键
+     *     ['companyId', 'username'], // 联合主键
+     *     ['phone'],                 // 其它的唯一索引
+     * ]
+     * @var array[] 所有唯一索引的列表（包括主键和联合主键）
+     */
+    protected static $uniques = [];
 
     protected static $tempProperties; //临时属性,只在程序运行时存在,不写入数据库. self::getFieldNames()会自动忽略的属性列表。默认null. 因为原型工具可以自动生成字段列表, 所以这个属性已过时, 基本上不需要设置这个属性.
     protected static $fieldNames; // 所有（要存入数据库的）字段名，子类可以硬编码这些字段,如果为null,则会自动生成（忽略static::$tempProperties）
     protected static $fieldTypes = ['' => self::FieldTypeInt32, ]; //字段类型的关联数组. 格式: [fieldName=>self::FieldTypeInt32, ...]
     protected static $unreadableFields; //（客户端）不可读字段列表
     protected static $unwritableFields; //（客户端）不可写字段列表
-
-//    protected static $table; //延迟静态绑定（类唯一）
-    protected static $tables = []; //延迟静态绑定不能正常工作, 原因未知. 所以只能用其它方法
 
     private $dbRawData; //来自数据库的原始数据
 
@@ -67,10 +77,7 @@ abstract class Model
     protected static function getTable() //子类可以重载此方法，连接非默认的数据库
     {
         $className = get_called_class();
-        if (isset($tables[$className])==false) {
-            $tables[$className] = new Table(Database::getDbForTable($className), $className);
-        }
-        return $tables[$className];
+        return Table::getTableForModel($className);
     }
 
     /**
@@ -534,7 +541,7 @@ abstract class Model
         if (count($values) === 0)
             throw new \Exception(get_class($this) . "对象属性全为null");
 
-        $id = static::getTable()->insert($values);
+        $id = static::getTable()->insert($values, static::$autoIncrementKey, static::$uniques);
 
         if($hasCreateTime) {
             $key = 'createTime';
@@ -1006,11 +1013,7 @@ abstract class Model
      */
     public static function deleteAll()
     {
-        $pk = static::$primaryKey;
-        if($pk==null) //该表没有主键
-            return static::getTable()->truncate();
-        else
-            return static::getTable()->deleteAll($pk);
+        return static::getTable()->deleteAll();
     }
 
     /**
@@ -1148,6 +1151,9 @@ abstract class Model
 
     /**
      * 根据字段查询, 并且对指定字段的值进行增加
+     * 即使有多条记录匹配, 也只查询和修改一条记录
+     * 一般用于计数器的增减之类的操作（对幂等性没有要求的）
+     * 钱的增减之类的操作不可使用此函数
      * @param $fields array 格式['field1'=>$value1, 'field2'=>$value2, ...];
      * @param $increaseField string 要增加的字段名
      * @param $deltaValue int 要增加的数值, 可正可负

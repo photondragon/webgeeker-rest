@@ -11,7 +11,6 @@ namespace WebGeeker\Rest;
 
 use \Psr\Http\Message\ResponseInterface as IResponse;
 use \Psr\Http\Message\ServerRequestInterface as IRequest;
-use WebGeeker\Utils\SimpleCookie;
 
 /**
  * @file Module.php
@@ -216,9 +215,14 @@ class Module
                 $params = $request->getQueryParams();
                 if($id===null)
                     $this->delete($params);
-                else
-                    $this->deleteById($id, $params);
-                break;
+                else {
+                    $m = 'delete' . ucfirst($id);
+                    if(method_exists($this, $m))
+                        $this->$m($params);
+                    else
+                        $this->deleteById($id, $params);
+                }
+               break;
             }
             case 'PATCH': {
                 $params = $request->getParsedBody();
@@ -290,13 +294,45 @@ class Module
         if(strlen($moduleName)==0)
             throw new \Exception('参数moduleName无效');
         $className = ucfirst($moduleName) . 'Api';
+
+        if(class_exists($className)===false) //任务类不存在
+            throw new \Exception("找不模块$moduleName");
+
         try {
             $module = new $className($request, $response, $result);
         } catch (\Exception $e) {
-            throw new \Exception("找不模块$moduleName");
+            throw new \Exception("创建模块{$moduleName}失败");
         }
         if($module instanceof Module)
             return $module;
         throw new \Exception('无效的模块' . $moduleName);
     }
+
+//    //region 输出结果
+//
+//    /**
+//     * @param $errorCode
+//     * @param $errorString
+//     */
+//    protected function error($errorCode, $errorString)
+//    {
+//        $this->result->error($errorCode, $errorString);
+//    }
+//
+//    /**
+//     * @param $message
+//     */
+//    protected function warning($message)
+//    {
+//        $this->result->warning($message);
+//    }
+//
+//    /**
+//     * @param $message
+//     */
+//    protected function debug($message)
+//    {
+//        $this->result->debug($message);
+//    }
+//    //endregion
 }

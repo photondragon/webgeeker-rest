@@ -177,4 +177,28 @@ class Auth
         return rtrim($decrypted,"\0");
     }
 
+    /**
+     * 异或加密/解密
+     * 加密: 明文 ^ 密钥 = 密文
+     * 加密: 密文 ^ 密钥 = 明文
+     * 在已知明文的情况下, 异或加密是脆弱的, 因为: 明文 ^ 密文 = 密钥
+     * 提高安全性
+     * 1. 密钥长度等于待加密字符串
+     * 2. 若key用伪随机算法生成, 结果就是流密码
+     * 3. 若key是真正随机的, 结果就是一次性密码本, 这种密码在理论不可破解
+     * @param $string string 明文
+     * @param string $key 密钥
+     * @return string 密文
+     */
+    static function encryptXor($string, $key = '') {
+        if(strlen($string)===0)
+            return '';
+        if(strlen($key)===0)
+            $key = 'dfsfasfasjhk';
+        $len1 = strlen($string);
+        $len2 = strlen($key);
+        if($len1 > $len2) // 密钥短于明文
+            $key = str_repeat($key, ceil($len1 / $len2));
+        return $string ^ $key;
+    }
 }

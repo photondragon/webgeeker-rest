@@ -69,6 +69,10 @@ abstract class Model
 
     private $dbRawData; //来自数据库的原始数据
 
+    protected static $validations = [
+//        'paramName' => ['lengthGeAndLe:1,64', 'variableName'],
+    ];
+
     //endregion
 
     /**

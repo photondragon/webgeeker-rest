@@ -260,6 +260,7 @@ class Module
             $module = self::createModule($moduleName, $request, $response, $result);
             $module->process($id); //处理
         } catch (\Exception $e) {
+            $result->debug($e->getTraceAsString());
             $result->error(1, $e->getMessage());
         }
         $echo = ob_get_contents(); //获取所有echo输出

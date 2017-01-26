@@ -266,8 +266,8 @@ class Module
         $echo = ob_get_contents(); //获取所有echo输出
         ob_end_clean();
 
-        $host = $_SERVER['HTTP_HOST'];
         if(@$_SERVER['HTTPS']) {
+            $host = $_SERVER['HTTP_HOST'];
             $response = $response->withHeader('Content-Type', 'application/json')
                 ->withHeader('Access-Control-Allow-Origin', "http://$host")
                 ->withHeader('Access-Control-Allow-Credentials', "true");

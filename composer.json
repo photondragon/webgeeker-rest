@@ -14,8 +14,9 @@
         }
     },
     "minimum-stability": "dev",
+    "prefer-stable": true,
     "require": {
-        "webgeeker/utils": "dev-master"
+        "webgeeker/utils": "^0.1"
     },
     "require-dev": {
     }

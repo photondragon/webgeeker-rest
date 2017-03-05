@@ -4,25 +4,22 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "472cc357327e14e2f39cb7601cfe1665",
-    "content-hash": "9d22984f1beca1d1938b5219b69f6808",
+    "hash": "815dc0160ae9bc704437b2d83f451d3b",
+    "content-hash": "359b21be261d6fcbd542b212512019f2",
     "packages": [
         {
             "name": "webgeeker/utils",
-            "version": "dev-master",
+            "version": "0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/photondragon/webgeeker-utils.git",
-                "reference": "5a8464b68d52c7b864b038fc1f63b52e2b1c4a5b"
+                "reference": "3f8fe9ac144032824b2fec94f2ecf0b58eb2ead0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/photondragon/webgeeker-utils/zipball/5a8464b68d52c7b864b038fc1f63b52e2b1c4a5b",
-                "reference": "5a8464b68d52c7b864b038fc1f63b52e2b1c4a5b",
+                "url": "https://api.github.com/repos/photondragon/webgeeker-utils/zipball/3f8fe9ac144032824b2fec94f2ecf0b58eb2ead0",
+                "reference": "3f8fe9ac144032824b2fec94f2ecf0b58eb2ead0",
                 "shasum": ""
-            },
-            "require-dev": {
-                "phpunit/phpunit": "^5.7"
             },
             "type": "library",
             "autoload": {
@@ -41,16 +38,14 @@
                 }
             ],
             "description": "utilities for WebGeeker",
-            "time": "2017-03-05 15:07:09"
+            "time": "2017-03-05 15:17:34"
         }
     ],
     "packages-dev": [],
     "aliases": [],
     "minimum-stability": "dev",
-    "stability-flags": {
-        "webgeeker/utils": 20
-    },
-    "prefer-stable": false,
+    "stability-flags": [],
+    "prefer-stable": true,
     "prefer-lowest": false,
     "platform": [],
     "platform-dev": []

@@ -13,12 +13,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/photondragon/webgeeker-utils.git",
-                "reference": "9e67c5b62168e1c6c8964270aaeb5533609bfa9d"
+                "reference": "5a8464b68d52c7b864b038fc1f63b52e2b1c4a5b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/photondragon/webgeeker-utils/zipball/9e67c5b62168e1c6c8964270aaeb5533609bfa9d",
-                "reference": "9e67c5b62168e1c6c8964270aaeb5533609bfa9d",
+                "url": "https://api.github.com/repos/photondragon/webgeeker-utils/zipball/5a8464b68d52c7b864b038fc1f63b52e2b1c4a5b",
+                "reference": "5a8464b68d52c7b864b038fc1f63b52e2b1c4a5b",
                 "shasum": ""
             },
             "require-dev": {
@@ -27,7 +27,7 @@
             "type": "library",
             "autoload": {
                 "psr-4": {
-                    "WebGeeker\\": "src/"
+                    "WebGeeker\\Utils\\": "src/Utils/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -41,7 +41,7 @@
                 }
             ],
             "description": "utilities for WebGeeker",
-            "time": "2017-03-05 14:41:43"
+            "time": "2017-03-05 15:07:09"
         }
     ],
     "packages-dev": [

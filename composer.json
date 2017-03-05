@@ -1,0 +1,19 @@
+{
+    "name": "webgeeker/rest",
+    "description": "simple framework for restful api",
+    "require": {
+        "phpunit/phpunit": "^6.0"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "photondragon",
+            "email": "photondragon@163.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "WebGeeker\\Rest\\": "src/"
+        }
+    }
+}

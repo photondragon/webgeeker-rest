@@ -2,7 +2,7 @@
     "name": "webgeeker/rest",
     "description": "simple framework for restful api",
     "require": {
-        "phpunit/phpunit": "^6.0"
+        "phpunit/phpunit": "^5.7"
     },
     "license": "MIT",
     "authors": [

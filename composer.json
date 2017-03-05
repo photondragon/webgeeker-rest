@@ -10,7 +10,7 @@
     ],
     "autoload": {
         "psr-4": {
-            "WebGeeker\\Rest\\": "src/"
+            "WebGeeker\\Rest\\": "src/Rest/"
         }
     },
     "require": {

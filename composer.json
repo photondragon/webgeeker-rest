@@ -13,8 +13,7 @@
             "WebGeeker\\Rest\\": "src/Rest/"
         }
     },
-    "minimum-stability": "dev",
-    "prefer-stable": true,
+    "minimum-stability": "stable",
     "require": {
         "webgeeker/utils": "^0.1"
     },

@@ -4,8 +4,8 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "4c3b3cb0794fa2ce5d613320bd7cfaae",
-    "content-hash": "359b21be261d6fcbd542b212512019f2",
+    "hash": "5304e6efd672c8b6479c04bea0021630",
+    "content-hash": "b76d15ea181aaaacd507bcaf17b951d6",
     "packages": [
         {
             "name": "webgeeker/utils",
@@ -43,9 +43,9 @@
     ],
     "packages-dev": [],
     "aliases": [],
-    "minimum-stability": "dev",
+    "minimum-stability": "stable",
     "stability-flags": [],
-    "prefer-stable": true,
+    "prefer-stable": false,
     "prefer-lowest": false,
     "platform": [],
     "platform-dev": []

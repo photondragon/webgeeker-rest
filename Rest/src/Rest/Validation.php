@@ -85,6 +85,10 @@ class Validation
 
 //        // 其它
 //        'required' => '必须提供 “{{param}}”参数',
+        'date' => '“{{param}}”必须符合日期格式YYYY-MM-DD',
+        'datetime' => '“{{param}}”必须符合日期时间格式YYYY-MM-DD HH:mm:ss',
+        'time' => '“{{param}}”必须符合时间格式HH:mm:ss或HH:mm',
+        'timestamp' => '“{{param}}”不是合法的时间戳',
 
         // 预处理（只处理字符串类型, 如果是其它类型, 则原值返回）
         'trim' => '', // 对要检测的值先作一个trim操作, 后续的检测是针对trim后的值进行检测
@@ -93,6 +97,121 @@ class Validation
         'toInt' => '', // 预处理为int型
         'toString' => '', // 预处理为string型（这个一般用不到）
     ];
+
+    public static function parse($string)
+    {
+        if (is_string($string) === false)
+            return [];
+        if (strlen($string) === 0)
+            return [];
+
+        $validations = [];
+
+        $segments = explode('|', $string);
+        $segCount = count($segments);
+        for ($i = 0; $i < $segCount;) {
+            $segment = $segments[$i];
+            if (stripos($segment, 'regexp:') === 0) // 是正则表达式
+            {
+                if (stripos($segment, '/') !== 7) // 非法的正则表达. 合法的必须首尾加/
+                    throw new \Exception("正则表达式验证器regexp格式非法. 正确的格式是 regexp:/xxxx/");
+
+                $pos = 8;
+                $len = strlen($segment);
+
+                $finish = false;
+                do {
+                    $pos2 = strripos($segment, '/'); // 反向查找字符/
+                    if ($pos2 !== $len - 1 // 不是以/结尾, 说明正则表达式中包含了|分隔符, 正则表达式被explode拆成了多段
+                        || $pos2 === 7
+                    ) // 第1个/后面就没字符了, 说明正则表达式中包含了|分隔符, 正则表达式被explode拆成了多段
+                    {
+                    } else // 以/结尾, 可能是完整的正则表达式, 也可能是不完整的正则表达式
+                    {
+                        do {
+                            $pos = stripos($segment, '\\', $pos); // 从前往后扫描转义符\
+                            if ($pos === false) // 结尾的/前面没有转义符\, 正则表达式扫描完毕
+                            {
+                                $finish = true;
+                                break;
+                            } else if ($pos === $len - 1) // 不可能, $len-1这个位置是字符/
+                            {
+                                ;
+                            } else if ($pos === $len - 2) // 结尾的/前面有转义符\, 说明/只是正则表达式内容的一部分, 正则表达式尚未结束
+                            {
+                                $pos += 3; // 跳过“\/|”三个字符
+                                break;
+                            } else {
+                                $pos += 2;
+                            }
+                        } while (1);
+
+                        if ($finish)
+                            break;
+                    }
+
+                    $i++;
+                    if ($i >= $segCount) // 后面没有segment了
+                        throw new \Exception("正则表达式验证器格式错误. 正确的格式是 regexp:/xxxx/");
+
+                    $segment .= '|';
+                    $segment .= $segments[$i]; // 拼接后面一个segment
+                    $len = strlen($segment);
+                    continue;
+
+                } while (1);
+
+                $validations[] = ['regexp', substr($segment, 7)];
+            } // end if(stripos($segment, 'regexp:')===0)
+            else {
+                $pos = stripos($segment, ':');
+                if ($pos === false)
+                    $validations[] = [$segment];
+                else {
+                    $v = trim(substr($segment, 0, $pos));
+                    $p = trim(substr($segment, $pos + 1));
+                    if (!$v || !$p)
+                        throw new \Exception("无法识别的验证器“${segment}”");
+                    $validations[] = [$v, $p];
+                }
+            }
+            $i++;
+        }
+        return $validations;
+    }
+
+    public static function validate($value, $validator, $alias = 'Parameter')
+    {
+        $validations = self::parse($validator);
+
+        foreach ($validations as $validation) {
+            switch ($validation[0]) {
+                case 'regexp':
+                    $value = self::validateRegexp($value, $validation[1], null, $alias);
+                    break;
+                case 'int':
+                    $value = self::validateInt($value, $alias);
+                    break;
+                case 'in':
+                    $value = self::validateIn($value, explode(',', $validation[1]), $alias);
+                    break;
+                case 'intIn': {
+                    $vlist = explode(',', $validation[1]);
+                    array_walk($vlist, function (&$value, $key) use ($validation) {
+                        if (is_numeric($value) && stripos($value, '.') === false)
+                            $value = intval($value);
+                        else
+                            throw new \Exception("验证器（${validation[0]}:${validation[1]}）中只能包含数字");
+                    });
+                    $value = self::validateIntIn($value, $vlist);
+                    break;
+                }
+                default:
+                    throw new \Exception("无效的验证器“${validation[0]}”");
+            }
+        }
+        return $value;
+    }
 
     //region integer
 
@@ -272,6 +391,72 @@ class Validation
         $error = str_replace('{{param}}', $alias = 'Parameter', $error);
         $error = str_replace('{{min}}', $min, $error);
         $error = str_replace('{{max}}', $max, $error);
+        throw new \Exception($error);
+    }
+
+    /**
+     * 验证intIn: “{{param}}”只能取这些值: {{valueList}}
+     * intIn与in的区别:
+     * 0123 -> intIn:123 通过; 0123 -> in:123 不通过
+     * @param $value string|int 参数值
+     * @param $alias string 参数别名, 用于错误提示
+     * @param $valueList string[] 可取值的列表
+     * @return string
+     * @throws \Exception
+     */
+    public static function validateIntIn($value, $valueList, $alias = 'Parameter')
+    {
+        if (is_array($valueList) === false || count($valueList) === 0)
+            throw new \Exception("“${alias}”参数的验证模版(intIn:)格式错误, 必须提供可取值的列表");
+
+        $type = gettype($value);
+        if ($type === 'string') {
+            if (is_numeric($value) && stripos($value, '.') === false) // 是数字并且没有小数点
+            {
+                $intValue = intval($value);
+                if (in_array($intValue, $valueList, true))
+                    return $value;
+            }
+        } else if ($type === 'integer') {
+            if (in_array($value, $valueList, true))
+                return $value;
+        }
+
+        $error = self::$errorTemplates['intIn'];
+        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = str_replace('{{valueList}}', implode(', ', $valueList), $error);
+        throw new \Exception($error);
+    }
+
+    /**
+     * 验证intNotIn: “{{param}}”不能取这些值: {{valueList}}
+     * @param $value mixed 参数值
+     * @param $alias string 参数别名, 用于错误提示
+     * @param $valueList array 不可取的值的列表
+     * @return mixed
+     * @throws \Exception
+     */
+    public static function validateIntNotIn($value, $valueList, $alias = 'Parameter')
+    {
+        if (is_array($valueList) === false || count($valueList) === 0)
+            throw new \Exception("“${alias}”参数的验证模版(intNotIn:)格式错误, 必须提供可取值的列表");
+
+        $type = gettype($value);
+        if ($type === 'string') {
+            if (is_numeric($value) && stripos($value, '.') === false) // 是数字并且没有小数点
+            {
+                $intValue = intval($value);
+                if (in_array($intValue, $valueList, true) === false)
+                    return $value;
+            }
+        } else if ($type === 'integer') {
+            if (in_array($value, $valueList, true) === false)
+                return $value;
+        }
+
+        $error = self::$errorTemplates['intNotIn'];
+        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = str_replace('{{valueList}}', implode(', ', $valueList), $error);
         throw new \Exception($error);
     }
 
@@ -512,7 +697,7 @@ class Validation
 
     public static function validateLengthGeAndLe($value, $lengthMin, $lengthMax, $alias = 'Parameter')
     {
-        if($lengthMin > $lengthMax)
+        if ($lengthMin > $lengthMax)
             throw new \Exception("“${alias}”参数的验证模版lengthGeAndLe格式错误, lengthMin不应该大于lengthMax");
 
         $type = gettype($value);
@@ -689,7 +874,7 @@ class Validation
      */
     public static function validateEquals($value, $equalsValue, $alias = 'Parameter')
     {
-        if(is_string($value) && $value === $equalsValue)
+        if (is_string($value) && $value === $equalsValue)
             return $value;
 
         $error = self::$errorTemplates['equals'];
@@ -708,10 +893,10 @@ class Validation
      */
     public static function validateIn($value, $valueList, $alias = 'Parameter')
     {
-        if(is_array($valueList) === false || count($valueList)===0)
+        if (is_array($valueList) === false || count($valueList) === 0)
             throw new \Exception("“${alias}”参数的验证模版(in:)格式错误, 必须提供可取值的列表");
 
-        if(in_array($value, $valueList, true))
+        if (in_array($value, $valueList, true))
             return $value;
 
         $error = self::$errorTemplates['in'];
@@ -730,10 +915,10 @@ class Validation
      */
     public static function validateNotIn($value, $valueList, $alias = 'Parameter')
     {
-        if(is_array($valueList) === false || count($valueList)===0)
+        if (is_array($valueList) === false || count($valueList) === 0)
             throw new \Exception("“${alias}”参数的验证模版(notIn:)格式错误, 必须提供不可取的值的列表");
 
-        if(in_array($value, $valueList, true) === false)
+        if (in_array($value, $valueList, true) === false)
             return $value;
 
         $error = self::$errorTemplates['notIn'];
@@ -824,16 +1009,15 @@ class Validation
         if (is_string($regexp) === false || $regexp === '')
             throw new \Exception("“${alias}”参数的验证模版(regexp:)格式错误, 没有提供正则表达式");
 
-//        $regexp = str_replace('/', '\/', $regexp);
-        $result = @preg_match("/$regexp/", $value);
-        if($result === 1)
+        $result = @preg_match($regexp, $value);
+        if ($result === 1)
             return $value;
-        else if($result === false)
+        else if ($result === false)
             throw new \Exception("“${alias}”参数的正则表达式验证失败, 请检查正则表达式是否合法");
 
         $error = self::$errorTemplates['regexp'];
         $error = str_replace('{{param}}', $alias = 'Parameter', $error);
-        if(!$reason)
+        if (!$reason)
             $reason = "不匹配正则表达式“${regexp}”";
         $error = str_replace('{{reason}}', $reason, $error);
         throw new \Exception($error);

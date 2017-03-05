@@ -16,10 +16,10 @@
 spl_autoload_register(function ($class) {
 
     // 命名空间前缀
-    $prefix = 'WebGeeker\\Utils\\';
+    $prefix = 'WebGeeker\\Rest\\';
 
     // 命名空间前缀对应的目录
-    $base_dir = __DIR__ . '/src/Utils/';
+    $base_dir = __DIR__ . '/Rest/';
 
     // 命名空间前缀不匹配
     $len = strlen($prefix);

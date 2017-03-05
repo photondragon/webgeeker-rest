@@ -15,7 +15,7 @@
 
 namespace WebGeeker\Rest;
 
-use \WebGeeker\Utils\SimpleCookie;
+use WebGeeker\Utils\SimpleCookie;
 
 /**
  * @class Auth

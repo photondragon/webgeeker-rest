@@ -4,9 +4,47 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "70d6233de1434848efdde2ff88edb791",
-    "content-hash": "926e4ae1cca0b75884be1d98e8864c95",
+    "hash": "ac9096f445b17373eb450c975f5a5316",
+    "content-hash": "fa20e3c71bda01c01db1b43ce1fbb3a8",
     "packages": [
+        {
+            "name": "webgeeker/utils",
+            "version": "dev-master",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/photondragon/webgeeker-utils.git",
+                "reference": "9e67c5b62168e1c6c8964270aaeb5533609bfa9d"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/photondragon/webgeeker-utils/zipball/9e67c5b62168e1c6c8964270aaeb5533609bfa9d",
+                "reference": "9e67c5b62168e1c6c8964270aaeb5533609bfa9d",
+                "shasum": ""
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^5.7"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "WebGeeker\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "photondragon",
+                    "email": "photondragon@163.com"
+                }
+            ],
+            "description": "utilities for WebGeeker",
+            "time": "2017-03-05 14:41:43"
+        }
+    ],
+    "packages-dev": [
         {
             "name": "doctrine/instantiator",
             "version": "1.0.5",
@@ -1321,10 +1359,11 @@
             "time": "2016-11-23 20:04:58"
         }
     ],
-    "packages-dev": [],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {
+        "webgeeker/utils": 20
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": [],

@@ -70,7 +70,12 @@ abstract class Model
     private $dbRawData; //来自数据库的原始数据
 
     protected static $validations = [
-//        'paramName' => ['lengthGeAndLe:1,64', 'variableName'],
+        'username' => 'lengthGeAndLe:4,30',
+        'password' => 'lengthGeAndLe:6,20',
+        'time' => [
+            'datetime',
+            'timestamp'
+        ],
     ];
 
     //endregion

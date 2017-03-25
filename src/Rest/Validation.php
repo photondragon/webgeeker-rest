@@ -32,89 +32,191 @@ class Validation
      */
     static public $errorTemplates = [
         // 整型（不提供length检测,因为负数的符号位会让人混乱, 可以用大于小于比较来做到这一点）
-        'int' => '“{{param}}”必须是整数',
-        'intGt' => '“{{param}}”必须是整数，并且大于 {{min}}',
-        'intGe' => '“{{param}}”必须是整数，并且大于等于 {{min}}',
-        'intLt' => '“{{param}}”必须是整数，并且小于 {{max}}',
-        'intLe' => '“{{param}}”必须是整数，并且小于等于 {{max}}',
-        'intGtAndLt' => '“{{param}}”必须是整数，取值大于 {{min}} 且小于 {{max}}',
-        'intGeAndLe' => '“{{param}}”必须是整数，取值大于等于 {{min}} 且小于等于 {{max}}',
-        'intGtAndLe' => '“{{param}}”必须是整数，取值大于 {{min}} 且小于等于 {{max}}',
-        'intGeAndLt' => '“{{param}}”必须是整数，取值大于等于 {{min}} 且小于 {{max}}',
-        'intIn' => '“{{param}}”必须是整数，并且只能取这些值: {{valueList}}',
-        'intNotIn' => '“{{param}}”必须是整数，并且不能取这些值: {{valueList}}',
+        'Int' => '“{{param}}”必须是整数',
+        'IntGt' => '“{{param}}”必须是整数，并且大于 {{min}}',
+        'IntGe' => '“{{param}}”必须是整数，并且大于等于 {{min}}',
+        'IntLt' => '“{{param}}”必须是整数，并且小于 {{max}}',
+        'IntLe' => '“{{param}}”必须是整数，并且小于等于 {{max}}',
+        'IntGtAndLt' => '“{{param}}”必须是整数，取值大于 {{min}} 且小于 {{max}}',
+        'IntGeAndLe' => '“{{param}}”必须是整数，取值大于等于 {{min}} 且小于等于 {{max}}',
+        'IntGtAndLe' => '“{{param}}”必须是整数，取值大于 {{min}} 且小于等于 {{max}}',
+        'IntGeAndLt' => '“{{param}}”必须是整数，取值大于等于 {{min}} 且小于 {{max}}',
+        'IntIn' => '“{{param}}”必须是整数，并且只能取这些值: {{valueList}}',
+        'IntNotIn' => '“{{param}}”必须是整数，并且不能取这些值: {{valueList}}',
 
         // 浮点型（内部一律使用double来处理）
-        'float' => '“{{param}}”必须是浮点数',
-        'double' => '“{{param}}”必须是浮点数', // 同float
-        'floatGt' => '“{{param}}”必须是浮点数，并且大于 {{min}}',
-        'floatGe' => '“{{param}}”必须是浮点数，并且大于等于 {{min}}',
-        'floatLt' => '“{{param}}”必须是浮点数，并且小于 {{max}}',
-        'floatLe' => '“{{param}}”必须是浮点数，并且小于等于 {{max}}',
-        'floatGtAndLt' => '“{{param}}”必须是浮点数，取值大于 {{min}} 且小于 {{max}}',
-        'floatGeAndLe' => '“{{param}}”必须是浮点数，取值大于等于 {{min}} 且小于等于 {{max}}',
-        'floatGtAndLe' => '“{{param}}”必须是浮点数，取值大于 {{min}} 且小于等于 {{max}}',
-        'floatGeAndLt' => '“{{param}}”必须是浮点数，取值大于等于 {{min}} 且小于 {{max}}',
+        'Float' => '“{{param}}”必须是浮点数',
+        'Double' => '“{{param}}”必须是浮点数', // 同float
+        'FloatGt' => '“{{param}}”必须是浮点数，并且大于 {{min}}',
+        'FloatGe' => '“{{param}}”必须是浮点数，并且大于等于 {{min}}',
+        'FloatLt' => '“{{param}}”必须是浮点数，并且小于 {{max}}',
+        'FloatLe' => '“{{param}}”必须是浮点数，并且小于等于 {{max}}',
+        'FloatGtAndLt' => '“{{param}}”必须是浮点数，取值大于 {{min}} 且小于 {{max}}',
+        'FloatGeAndLe' => '“{{param}}”必须是浮点数，取值大于等于 {{min}} 且小于等于 {{max}}',
+        'FloatGtAndLe' => '“{{param}}”必须是浮点数，取值大于 {{min}} 且小于等于 {{max}}',
+        'FloatGeAndLt' => '“{{param}}”必须是浮点数，取值大于等于 {{min}} 且小于 {{max}}',
 
         // bool型
-        'bool' => '“{{param}}”必须是bool型(true or false)', // 忽略大小写
-        'boolSmart' => '“{{param}}”只能取这些值: true, false, yes, no, 1, 0（忽略大小写）',
+        'Bool' => '“{{param}}”必须是bool型(true or false)', // 忽略大小写
+        'BoolSmart' => '“{{param}}”只能取这些值: true, false, yes, no, 1, 0（忽略大小写）',
 
         // 字符串
 //        'string' => '',
-        'length' => '“{{param}}”长度必须等于 {{length}}', // 字符串长度
-        'lengthGe' => '“{{param}}”长度必须大于等于 {{length}}',
-        'lengthLe' => '“{{param}}”长度必须小于等于 {{length}}',
-        'lengthGeAndLe' => '“{{param}}”长度必须在 {{lengthMin}} - {{lengthMax}} 之间', // 字符串长度
-        'letters' => '“{{param}}”只能包含字母',
-        'alphabet' => '“{{param}}”只能包含字母', // 同letters
-        'numbers' => '“{{param}}”只能是纯数字',
-        'digits' => '“{{param}}”只能是纯数字', // 同numbers
-        'lettersAndNumbers' => '“{{param}}”只能包含字母和数字',
-        'numeric' => '“{{param}}”必须是数值', // 一般用于大数处理（超过double表示范围的数,一般会用字符串来表示）, 如果是正常范围内的数, 可以使用'int'或'float'来检测
-        'variableName' => '“{{param}}”只能包含字母、数字和下划线，并且以字母或下划线开头',
-        'equals' => '“{{param}}”必须等于 {{value}}',
-        'in' => '“{{param}}”只能取这些值: {{valueList}}',
-        'notIn' => '“{{param}}”不能取这些值: {{valueList}}',
-        'inIgnoreCase' => '“{{param}}”只能取这些值: {{valueList}}（忽略大小写）',
-        'notInIgnoreCase' => '“{{param}}”不能取这些值: {{valueList}}（忽略大小写）',
-        'regexp' => '“{{param}}”{{reason}}', // Perl正则表达式匹配
+        'Length' => '“{{param}}”长度必须等于 {{length}}', // 字符串长度
+        'LengthGe' => '“{{param}}”长度必须大于等于 {{length}}',
+        'LengthLe' => '“{{param}}”长度必须小于等于 {{length}}',
+        'LengthGeAndLe' => '“{{param}}”长度必须在 {{lengthMin}} - {{lengthMax}} 之间', // 字符串长度
+        'Letters' => '“{{param}}”只能包含字母',
+        'Alphabet' => '“{{param}}”只能包含字母', // 同Letters
+        'Numbers' => '“{{param}}”只能是纯数字',
+        'Digits' => '“{{param}}”只能是纯数字', // 同Numbers
+        'LettersAndNumbers' => '“{{param}}”只能包含字母和数字',
+        'Numeric' => '“{{param}}”必须是数值', // 一般用于大数处理（超过double表示范围的数,一般会用字符串来表示）, 如果是正常范围内的数, 可以使用'Int'或'Float'来检测
+        'VariableName' => '“{{param}}”只能包含字母、数字和下划线，并且以字母或下划线开头',
+        'Equals' => '“{{param}}”必须等于 {{value}}',
+        'In' => '“{{param}}”只能取这些值: {{valueList}}',
+        'NotIn' => '“{{param}}”不能取这些值: {{valueList}}',
+        'InIgnoreCase' => '“{{param}}”只能取这些值: {{valueList}}（忽略大小写）',
+        'NotInIgnoreCase' => '“{{param}}”不能取这些值: {{valueList}}（忽略大小写）',
+        'Regexp' => '“{{param}}”{{reason}}', // Perl正则表达式匹配
+
+        // 文件
+        'File' => '“{{param}}”必须是文件',
+        'FileSize' => '“{{param}}”必须是文件, 且大小不超过{{size}}',
+        'FileExt' => '“{{param}}”必须是.{{ext}}文件',
+        'FileImage' => '“{{param}}”必须是图像文件(jpg,png,bmp,gif,ico,tiff)',
+        'FileVideo' => '“{{param}}”必须是视频文件(mp4,rm,mov,avi)',
+        'FileAudio' => '“{{param}}”必须是音频文件(mp3,wav,aac)',
+
+//        // 关系型（似乎没有存在的必要）
+//        'or' => '', // 或关系
+        'Required' => '必须提供参数{{param}}',
+
+//        // 其它
+        'Array' => '“{{param}}”必须是数组',
+        'Object' => '“{{param}}”必须是对象',
+        'Date' => '“{{param}}”必须符合日期格式YYYY-MM-DD',
+        'Datetime' => '“{{param}}”必须符合日期时间格式YYYY-MM-DD HH:mm:ss',
+        'Time' => '“{{param}}”必须符合时间格式HH:mm:ss或HH:mm',
+        'Timestamp' => '“{{param}}”不是合法的时间戳',
+
+        // 预处理（只处理字符串类型, 如果是其它类型, 则原值返回）
+        'Trim' => '', // 对要检测的值先作一个trim操作, 后续的检测是针对trim后的值进行检测
+        'Lowercase' => '', // 将要检测的值转为小写, 后续的检测是针对转换后的值进行检测
+        'Uppercase' => '', // 将要检测的值转为大写, 后续的检测是针对转换后的值进行检测
+        'ToInt' => '', // 预处理为int型
+        'ToString' => '', // 预处理为string型（这个一般用不到）
+    ];
+
+    // 所有验证器格式示例
+    static private $sampleFormats = [
+        // 整型（不提供length检测,因为负数的符号位会让人混乱, 可以用大于小于比较来做到这一点）
+        'Int' => 'Int',
+        'IntGt' => 'IntGt:100',
+        'IntGe' => 'IntGe:100',
+        'IntLt' => 'IntLt:100',
+        'IntLe' => 'IntLe:100',
+        'IntGtAndLt' => 'IntGtAndLt:1,100',
+        'IntGeAndLe' => 'IntGeAndLe:1,100',
+        'IntGtAndLe' => 'IntGtAndLe:1,100',
+        'IntGeAndLt' => 'IntGeAndLt:1,100',
+        'IntIn' => 'IntIn:2,3,5,7,11',
+        'IntNotIn' => 'IntNotIn:2,3,5,7,11',
+
+        // 浮点型（内部一律使用double来处理）
+        'Float' => 'Float',
+        'Double' => 'Double', // 同float
+        'FloatGt' => 'FloatGt:1.0',
+        'FloatGe' => 'FloatGe:1.0',
+        'FloatLt' => 'FloatLt:1.0',
+        'FloatLe' => 'FloatLe:1.0',
+        'FloatGtAndLt' => 'FloatGtAndLt:0,1.0',
+        'FloatGeAndLe' => 'FloatGeAndLe:0,1.0',
+        'FloatGtAndLe' => 'FloatGtAndLe:0,1.0',
+        'FloatGeAndLt' => 'FloatGeAndLt:0,1.0',
+
+        // bool型
+        'Bool' => 'Bool', // 忽略大小写
+        'BoolSmart' => 'BoolSmart',
+
+        // 字符串
+//        'string' => '',
+        'Length' => 'Length:8', // 字符串长度
+        'LengthGe' => 'LengthGe:8',
+        'LengthLe' => 'LengthLe:8',
+        'LengthGeAndLe' => 'LengthGeAndLe:6,8', // 字符串长度
+        'Letters' => 'Letters',
+        'Alphabet' => 'Alphabet', // 同Letters
+        'Numbers' => 'Numbers',
+        'Digits' => 'Digits', // 同Numbers
+        'LettersAndNumbers' => 'LettersAndNumbers',
+        'Numeric' => 'Numeric',
+        'VariableName' => 'VariableName',
+        'Equals' => 'Equals:abc',
+        'In' => 'In:abc,def,g',
+        'NotIn' => 'NotIn:abc,def,g',
+        'InIgnoreCase' => 'InIgnoreCase:abc,def,g',
+        'NotInIgnoreCase' => 'NotInIgnoreCase:abc,def,g',
+        'Regexp' => 'Regexp:/^abc$/', // Perl正则表达式匹配
+
+        'File' => 'File',
+        'FileSize' => 'FileSize:100kb',
+        'FileExt' => 'FileExt',
+        'FileImage' => 'FileImage',
+        'FileVideo' => 'FileVideo',
+        'FileAudio' => 'FileAudio',
 
 //        // 关系型（似乎没有存在的必要）
 //        'or' => '', // 或关系
 
 //        // 其它
 //        'required' => '必须提供 “{{param}}”参数',
-        'date' => '“{{param}}”必须符合日期格式YYYY-MM-DD',
-        'datetime' => '“{{param}}”必须符合日期时间格式YYYY-MM-DD HH:mm:ss',
-        'time' => '“{{param}}”必须符合时间格式HH:mm:ss或HH:mm',
-        'timestamp' => '“{{param}}”不是合法的时间戳',
+        'Array' => 'Array',
+        'Object' => 'Object',
+        'Date' => 'Date',
+        'Datetime' => 'Datetime',
+        'Time' => 'Time',
+        'Timestamp' => 'Timestamp',
 
         // 预处理（只处理字符串类型, 如果是其它类型, 则原值返回）
-        'trim' => '', // 对要检测的值先作一个trim操作, 后续的检测是针对trim后的值进行检测
-        'lowercase' => '', // 将要检测的值转为小写, 后续的检测是针对转换后的值进行检测
-        'uppercase' => '', // 将要检测的值转为大写, 后续的检测是针对转换后的值进行检测
-        'toInt' => '', // 预处理为int型
-        'toString' => '', // 预处理为string型（这个一般用不到）
+        'Trim' => 'Trim',
+        'Lowercase' => 'Lowercase',
+        'Uppercase' => 'Uppercase',
+        'ToInt' => 'ToInt',
+        'ToString' => 'ToString',
     ];
 
-    public static function parse($string)
+    /**
+     * 将一条验证字符串转为验证器数组
+     *
+     * 例如:
+     * 输入: $validation = 'Length:6,16|regex:/^[a-zA-Z0-9]+$/'
+     * 输出: [
+     *     ['Length', 6, 16,],
+     *     ['regex', '/^[a-zA-Z0-9]+$/'],
+     * ]
+     *
+     * @param $validation string 一条验证字符串
+     * @return array 返回验证器的数组
+     * @throws \Exception
+     */
+    private static function _parse($validation)
     {
-        if (is_string($string) === false)
+        if (is_string($validation) === false)
             return [];
-        if (strlen($string) === 0)
+        if (strlen($validation) === 0)
             return [];
 
-        $validations = [];
+        $validators = [];
 
-        $segments = explode('|', $string);
+        $segments = explode('|', $validation);
         $segCount = count($segments);
         for ($i = 0; $i < $segCount;) {
             $segment = $segments[$i];
-            if (stripos($segment, 'regexp:') === 0) // 是正则表达式
+            if (stripos($segment, 'Regexp:') === 0) // 是正则表达式
             {
                 if (stripos($segment, '/') !== 7) // 非法的正则表达. 合法的必须首尾加/
-                    throw new \Exception("正则表达式验证器regexp格式非法. 正确的格式是 regexp:/xxxx/");
+                    throw new \Exception("正则表达式验证器regexp格式非法. 正确的格式是 Regexp:/xxxx/");
 
                 $pos = 8;
                 $len = strlen($segment);
@@ -152,7 +254,7 @@ class Validation
 
                     $i++;
                     if ($i >= $segCount) // 后面没有segment了
-                        throw new \Exception("正则表达式验证器格式错误. 正确的格式是 regexp:/xxxx/");
+                        throw new \Exception("正则表达式验证器格式错误. 正确的格式是 Regexp:/xxxx/");
 
                     $segment .= '|';
                     $segment .= $segments[$i]; // 拼接后面一个segment
@@ -161,59 +263,250 @@ class Validation
 
                 } while (1);
 
-                $validations[] = ['regexp', substr($segment, 7)];
-            } // end if(stripos($segment, 'regexp:')===0)
+                $validators[] = ['Regexp', substr($segment, 7)];
+            } // end if(stripos($segment, 'Regexp:')===0)
             else {
                 $pos = stripos($segment, ':');
-                if ($pos === false)
-                    $validations[] = [$segment];
-                else {
-                    $v = trim(substr($segment, 0, $pos));
+                if ($pos === false) {
+                    if ($segment === 'Required' && count($validators) > 0)
+                        throw new \Exception("Required只能出现在验证器的开头");
+                    $validators[] = [$segment];
+                } else {
+                    $validatorName = trim(substr($segment, 0, $pos));
                     $p = trim(substr($segment, $pos + 1));
-                    if (!$v || !$p)
+                    if (strlen($validatorName)===0 || strlen($p) === 0)
                         throw new \Exception("无法识别的验证器“${segment}”");
-                    $validations[] = [$v, $p];
+                    switch ($validatorName) {
+                        case 'IntGt':
+                        case 'IntGe':
+                        case 'IntLt':
+                        case 'IntLe':
+                            if (self::_isIntOrIntString($p) === false)
+                                self::_throwFormatError($validatorName);
+                            $validator = [$validatorName, intval($p)];
+                            break;
+                        case 'IntGtAndLt':
+                        case 'IntGeAndLe':
+                        case 'IntGtAndLe':
+                        case 'IntGeAndLt':
+                            $vals = explode(',', $p);
+                            if (count($vals) !== 2)
+                                self::_throwFormatError($validatorName);
+                            $p1 = $vals[0];
+                            $p2 = $vals[1];
+                            if (self::_isIntOrIntString($p1) === false || self::_isIntOrIntString($p2) === false)
+                                self::_throwFormatError($validatorName);
+                            $validator = [$validatorName, intval($p1), intval($p2)];
+                            break;
+                        case 'IntIn':
+                        case 'IntNotIn':
+                            $ints = self::_parseIntArray($p);
+                            if ($ints === false)
+                                self::_throwFormatError($validatorName);
+                            $validator = [$validatorName, $ints];
+                            break;
+                        case 'Length':
+                        case 'LengthGe':
+                        case 'LengthLe':
+                            if (self::_isIntOrIntString($p) === false)
+                                self::_throwFormatError($validatorName);
+                            $validator = [$validatorName, intval($p)];
+                            break;
+                        case 'LengthGeAndLe':
+                            $vals = explode(',', $p);
+                            if (count($vals) !== 2)
+                                self::_throwFormatError($validatorName);
+                            $p1 = $vals[0];
+                            $p2 = $vals[1];
+                            if (self::_isIntOrIntString($p1) === false || self::_isIntOrIntString($p2) === false)
+                                self::_throwFormatError($validatorName);
+                            $validator = [$validatorName, intval($p1), intval($p2)];
+                            break;
+                        case 'equals':
+                            $p = trim($p);
+                            if(strlen($p) === 0)
+                                self::_throwFormatError($validatorName);
+                            $validator = [$validatorName, $p];
+                            break;
+                        case 'In':
+                        case 'NotIn':
+                        case 'InIgnoreCase':
+                        case 'NotInIgnoreCase':
+                            $strings = self::_parseStringArray($p);
+                            if ($strings === false)
+                                self::_throwFormatError($validatorName);
+                            $validator = [$validatorName, $strings];
+                            break;
+                        case 'FloatGt':
+                        case 'FloatGe':
+                        case 'FloatLt':
+                        case 'FloatLe':
+                            if (is_numeric($p) === false)
+                                self::_throwFormatError($validatorName);
+                            $validator = [$validatorName, doubleval($p)];
+                            break;
+                        case 'FloatGtAndLt':
+                        case 'FloatGeAndLe':
+                        case 'FloatGtAndLe':
+                        case 'FloatGeAndLt':
+                            $vals = explode(',', $p);
+                            if (count($vals) !== 2)
+                                self::_throwFormatError($validatorName);
+                            $p1 = $vals[0];
+                            $p2 = $vals[1];
+                            if (is_numeric($p1) === false || is_numeric($p2) === false)
+                                self::_throwFormatError($validatorName);
+                            $validator = [$validatorName, doubleval($p1), doubleval($p2)];
+                            break;
+                        default:
+                            throw new \Exception("无法识别的验证器“${segment}”");
+                    }
+                    $validators[] = $validator;
                 }
             }
             $i++;
         }
-        return $validations;
+        return $validators;
     }
 
-    public static function validate($value, $validator, $alias = 'Parameter')
+    private static function _throwFormatError($validatorName)
     {
-        $validations = self::parse($validator);
+        $sampleFormat = @self::$sampleFormats[$validatorName];
+        if($sampleFormat === null)
+            throw new \Exception("验证器${validatorName}格式错误");
+        throw new \Exception("验证器${validatorName}格式错误, 正确的格式是: $sampleFormat");
+    }
 
+    private static function _isIntOrIntString($value)
+    {
+        return (is_numeric($value) && stripos($value, '.') === false);
+    }
+
+    /**
+     * 将包含int数组的字符串转为int数组
+     * @param $value
+     * @return int[]|bool 如果是合法的int数组, 并且至少有1个int, 返回int数组; 否则返回false
+     */
+    private static function _parseIntArray($value)
+    {
+        $vals = explode(',', $value);
+        $ints = [];
+        foreach ($vals as $val) {
+            if(is_numeric($val) === false || stripos($val, '.') !== false)
+                return false; // 检测到了非int
+            $ints[] = intval($val);
+        }
+        if(count($ints)===0)
+            return false;
+        return $ints;
+    }
+
+    /**
+     * 将字符串转为字符串数组（逗号分隔）
+     * @param $value
+     * @return string[]|bool 如果至少有1个有效字符串, 返回字符串数组; 否则返回false
+     */
+    private static function _parseStringArray($value)
+    {
+        $vals = explode(',', $value);
+        $strings = [];
+        foreach ($vals as $val) {
+            $val = trim($val);
+            if(strlen($val) === 0)
+                return false; // 检测到了非int
+            $strings[] = $val;
+        }
+        if(count($strings)===0)
+            return false;
+        return $strings;
+    }
+
+    /**
+     * 验证一个值
+     * @param $value mixed 要验证的值
+     * @param $validation string|string[] 一条验证字符串, 例: 'Length:6,16|regex:/^[a-zA-Z0-9]+$/'; 或多条验证字符串的数组, 多条验证字符串之间是或的关系
+     * @param string $alias 要验证的值的别名, 用于在验证不通过时生成提示字符串.
+     * @return mixed 返回$value被过滤后的新值
+     * @throws \Exception
+     */
+    public static function validate($value, $validation, $alias = 'Parameter')
+    {
+        if(is_array($validation)) {
+            $validations = $validation;
+        } else if(is_string($validation)) {
+            $validations = [$validation];
+        } else
+            throw new \Exception(self::class . '::' . __FUNCTION__ . "(): \$validator必须是字符串或字符串数组");
+
+        $passed = false;
         foreach ($validations as $validation) {
-            switch ($validation[0]) {
-                case 'regexp':
-                    $value = self::validateRegexp($value, $validation[1], null, $alias);
-                    break;
-                case 'int':
-                    $value = self::validateInt($value, $alias);
-                    break;
-                case 'in':
-                    $value = self::validateIn($value, explode(',', $validation[1]), $alias);
-                    break;
-                case 'intIn': {
-                    $vlist = explode(',', $validation[1]);
-                    array_walk($vlist, function (&$value, $key) use ($validation) {
-                        if (is_numeric($value) && stripos($value, '.') === false)
-                            $value = intval($value);
-                        else
-                            throw new \Exception("验证器（${validation[0]}:${validation[1]}）中只能包含数字");
-                    });
-                    $value = self::validateIntIn($value, $vlist);
-                    break;
+
+            $validators = self::_parse($validation);
+
+            try {
+
+                if($value === null) //没有提供参数
+                {
+                    if($validation==='Required' || stripos($validation, 'Required|') === 0) {
+                        $error = self::$errorTemplates['Required'];
+                        $error = str_replace('{{param}}', $alias, $error);
+                        throw new \Exception($error);
+                    }
+                    else // 没有提供参数默认不检测, 直接通过
+                    {
+                        $passed = true;
+                        continue;
+                    }
                 }
-                default:
-                    throw new \Exception("无效的验证器“${validation[0]}”");
+
+                foreach ($validators as $validator) {
+
+                    $validatorName = $validator[0];
+
+                    $method = 'validate' . ucfirst($validatorName);
+
+                    if(method_exists(self::class, $method)===false)
+                        throw new \Exception("找不到验证器${validatorName}的验证方法");
+
+                    $params = [$value];
+                    $paramsCount = count($validator);
+                    for ($i = 1; $i < $paramsCount; $i++) {
+                        $params[] = $validator[$i];
+                    }
+                    $params[] = $alias;
+
+                    $value = call_user_func_array([self::class, $method], $params);
+
+                }
+
+                // 多个validation只需要一条验证通过即可
+                $passed = true;
+                break;
+            } catch (\Exception $e) {
+                $lastException = $e;
             }
         }
-        return $value;
+        if($passed)
+            return $value;
+        if(isset($lastException))
+            throw $lastException;
+        throw new \Exception("“${alias}”验证失败"); // 这句应该不会执行
     }
 
-    //region integer
+    //region validate others
+
+    public static function validateRequired($value, $alias = 'Parameter')
+    {
+        if($value !== null)
+            return $value;
+        $error = self::$errorTemplates['Required'];
+        $error = str_replace('{{param}}', $alias, $error);
+        throw new \Exception($error);
+    }
+
+    //endregion
+
+    //region validate integer
 
     public static function validateInt($value, $alias = 'Parameter')
     {
@@ -225,8 +518,8 @@ class Validation
             return $value;
         }
 
-        $error = self::$errorTemplates['int'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['Int'];
+        $error = str_replace('{{param}}', $alias, $error);
         throw new \Exception($error);
     }
 
@@ -244,8 +537,8 @@ class Validation
                 return $value;
         }
 
-        $error = self::$errorTemplates['intGt'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['IntGt'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{min}}', $min, $error);
         throw new \Exception($error);
     }
@@ -264,8 +557,8 @@ class Validation
                 return $value;
         }
 
-        $error = self::$errorTemplates['intGe'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['IntGe'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{min}}', $min, $error);
         throw new \Exception($error);
     }
@@ -284,8 +577,8 @@ class Validation
                 return $value;
         }
 
-        $error = self::$errorTemplates['intLt'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['IntLt'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{max}}', $max, $error);
         throw new \Exception($error);
     }
@@ -304,8 +597,8 @@ class Validation
                 return $value;
         }
 
-        $error = self::$errorTemplates['intLe'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['IntLe'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{max}}', $max, $error);
         throw new \Exception($error);
     }
@@ -324,8 +617,8 @@ class Validation
                 return $value;
         }
 
-        $error = self::$errorTemplates['intGtAndLt'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['IntGtAndLt'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{min}}', $min, $error);
         $error = str_replace('{{max}}', $max, $error);
         throw new \Exception($error);
@@ -345,8 +638,8 @@ class Validation
                 return $value;
         }
 
-        $error = self::$errorTemplates['intGeAndLe'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['IntGeAndLe'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{min}}', $min, $error);
         $error = str_replace('{{max}}', $max, $error);
         throw new \Exception($error);
@@ -366,8 +659,8 @@ class Validation
                 return $value;
         }
 
-        $error = self::$errorTemplates['intGtAndLe'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['IntGtAndLe'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{min}}', $min, $error);
         $error = str_replace('{{max}}', $max, $error);
         throw new \Exception($error);
@@ -387,17 +680,17 @@ class Validation
                 return $value;
         }
 
-        $error = self::$errorTemplates['intGeAndLt'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['IntGeAndLt'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{min}}', $min, $error);
         $error = str_replace('{{max}}', $max, $error);
         throw new \Exception($error);
     }
 
     /**
-     * 验证intIn: “{{param}}”只能取这些值: {{valueList}}
-     * intIn与in的区别:
-     * 0123 -> intIn:123 通过; 0123 -> in:123 不通过
+     * 验证IntIn: “{{param}}”只能取这些值: {{valueList}}
+     * IntIn与in的区别:
+     * 0123 -> IntIn:123 通过; 0123 -> In:123 不通过
      * @param $value string|int 参数值
      * @param $alias string 参数别名, 用于错误提示
      * @param $valueList string[] 可取值的列表
@@ -407,7 +700,7 @@ class Validation
     public static function validateIntIn($value, $valueList, $alias = 'Parameter')
     {
         if (is_array($valueList) === false || count($valueList) === 0)
-            throw new \Exception("“${alias}”参数的验证模版(intIn:)格式错误, 必须提供可取值的列表");
+            throw new \Exception("“${alias}”参数的验证模版(IntIn:)格式错误, 必须提供可取值的列表");
 
         $type = gettype($value);
         if ($type === 'string') {
@@ -422,8 +715,8 @@ class Validation
                 return $value;
         }
 
-        $error = self::$errorTemplates['intIn'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['IntIn'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{valueList}}', implode(', ', $valueList), $error);
         throw new \Exception($error);
     }
@@ -454,8 +747,8 @@ class Validation
                 return $value;
         }
 
-        $error = self::$errorTemplates['intNotIn'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['IntNotIn'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{valueList}}', implode(', ', $valueList), $error);
         throw new \Exception($error);
     }
@@ -466,115 +759,74 @@ class Validation
 
     public static function validateFloat($value, $alias = 'Parameter')
     {
-        $type = gettype($value);
-        if ($type === 'string') {
-            if (preg_match('/^\-?[0-9]+\.?[0-9]*$/', $value) === 1)
-                return $value;
-        } elseif ($type === 'double') {
+        if (is_numeric($value))
             return $value;
-        }
-
-        $error = self::$errorTemplates['float'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['Float'];
+        $error = str_replace('{{param}}', $alias, $error);
         throw new \Exception($error);
     }
 
     public static function validateFloatGt($value, $min, $alias = 'Parameter')
     {
-        $type = gettype($value);
-        if ($type === 'string') {
-            if (preg_match('/^\-?[0-9]+\.?[0-9]*$/', $value) === 1) {
-                $val = doubleval($value);
-                if ($val > $min)
-                    return $value;
-            }
-        } elseif ($type === 'double') {
-            if ($value > $min)
+        if (is_numeric($value)) {
+            $f = floatval($value);
+            if ($f > $min)
                 return $value;
         }
-
-        $error = self::$errorTemplates['floatGt'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['FloatGt'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{min}}', $min, $error);
         throw new \Exception($error);
     }
 
     public static function validateFloatGe($value, $min, $alias = 'Parameter')
     {
-        $type = gettype($value);
-        if ($type === 'string') {
-            if (preg_match('/^\-?[0-9]+\.?[0-9]*$/', $value) === 1) {
-                $val = doubleval($value);
-                if ($val >= $min)
-                    return $value;
-            }
-        } elseif ($type === 'double') {
-            if ($value >= $min)
+        if (is_numeric($value)) {
+            $f = floatval($value);
+            if ($f >= $min)
                 return $value;
         }
-
-        $error = self::$errorTemplates['floatGe'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['FloatGe'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{min}}', $min, $error);
         throw new \Exception($error);
     }
 
     public static function validateFloatLt($value, $max, $alias = 'Parameter')
     {
-        $type = gettype($value);
-        if ($type === 'string') {
-            if (preg_match('/^\-?[0-9]+\.?[0-9]*$/', $value) === 1) {
-                $val = doubleval($value);
-                if ($val < $max)
-                    return $value;
-            }
-        } elseif ($type === 'double') {
-            if ($value < $max)
+        if (is_numeric($value)) {
+            $f = floatval($value);
+            if ($f < $max)
                 return $value;
         }
-
-        $error = self::$errorTemplates['floatLt'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['FloatLt'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{max}}', $max, $error);
         throw new \Exception($error);
     }
 
     public static function validateFloatLe($value, $max, $alias = 'Parameter')
     {
-        $type = gettype($value);
-        if ($type === 'string') {
-            if (preg_match('/^\-?[0-9]+\.?[0-9]*$/', $value) === 1) {
-                $val = doubleval($value);
-                if ($val <= $max)
-                    return $value;
-            }
-        } elseif ($type === 'double') {
-            if ($value <= $max)
+        if (is_numeric($value)) {
+            $f = floatval($value);
+            if ($f <= $max)
                 return $value;
         }
-
-        $error = self::$errorTemplates['floatLe'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['FloatLe'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{max}}', $max, $error);
         throw new \Exception($error);
     }
 
     public static function validateFloatGtAndLt($value, $min, $max, $alias = 'Parameter')
     {
-        $type = gettype($value);
-        if ($type === 'string') {
-            if (preg_match('/^\-?[0-9]+\.?[0-9]*$/', $value) === 1) {
-                $val = doubleval($value);
-                if ($val > $min && $val < $max)
-                    return $value;
-            }
-        } elseif ($type === 'double') {
-            if ($value > $min && $value < $max)
+        if (is_numeric($value)) {
+            $f = floatval($value);
+            if ($f > $min && $f < $max)
                 return $value;
         }
-
-        $error = self::$errorTemplates['floatGtAndLt'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['FloatGtAndLt'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{min}}', $min, $error);
         $error = str_replace('{{max}}', $max, $error);
         throw new \Exception($error);
@@ -582,20 +834,13 @@ class Validation
 
     public static function validateFloatGeAndLe($value, $min, $max, $alias = 'Parameter')
     {
-        $type = gettype($value);
-        if ($type === 'string') {
-            if (preg_match('/^\-?[0-9]+\.?[0-9]*$/', $value) === 1) {
-                $val = doubleval($value);
-                if ($val >= $min && $val <= $max)
-                    return $value;
-            }
-        } elseif ($type === 'double') {
-            if ($value >= $min && $value <= $max)
+        if (is_numeric($value)) {
+            $f = floatval($value);
+            if ($f >= $min && $f <= $max)
                 return $value;
         }
-
-        $error = self::$errorTemplates['floatGeAndLe'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['FloatGeAndLe'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{min}}', $min, $error);
         $error = str_replace('{{max}}', $max, $error);
         throw new \Exception($error);
@@ -603,20 +848,13 @@ class Validation
 
     public static function validateFloatGtAndLe($value, $min, $max, $alias = 'Parameter')
     {
-        $type = gettype($value);
-        if ($type === 'string') {
-            if (preg_match('/^\-?[0-9]+\.?[0-9]*$/', $value) === 1) {
-                $val = doubleval($value);
-                if ($val > $min && $val <= $max)
-                    return $value;
-            }
-        } elseif ($type === 'double') {
-            if ($value > $min && $value <= $max)
+        if (is_numeric($value)) {
+            $f = floatval($value);
+            if ($f > $min && $f <= $max)
                 return $value;
         }
-
-        $error = self::$errorTemplates['floatGtAndLe'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['FloatGtAndLe'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{min}}', $min, $error);
         $error = str_replace('{{max}}', $max, $error);
         throw new \Exception($error);
@@ -624,20 +862,13 @@ class Validation
 
     public static function validateFloatGeAndLt($value, $min, $max, $alias = 'Parameter')
     {
-        $type = gettype($value);
-        if ($type === 'string') {
-            if (preg_match('/^\-?[0-9]+\.?[0-9]*$/', $value) === 1) {
-                $val = doubleval($value);
-                if ($val >= $min && $val < $max)
-                    return $value;
-            }
-        } elseif ($type === 'double') {
-            if ($value >= $min && $value < $max)
+        if (is_numeric($value)) {
+            $f = floatval($value);
+            if ($f >= $min && $f < $max)
                 return $value;
         }
-
-        $error = self::$errorTemplates['floatGeAndLt'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['FloatGeAndLt'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{min}}', $min, $error);
         $error = str_replace('{{max}}', $max, $error);
         throw new \Exception($error);
@@ -657,8 +888,8 @@ class Validation
             }
         }
 
-        $error = self::$errorTemplates['length'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['Length'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{length}}', $length, $error);
         throw new \Exception($error);
     }
@@ -673,8 +904,8 @@ class Validation
             }
         }
 
-        $error = self::$errorTemplates['lengthGe'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['LengthGe'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{length}}', $length, $error);
         throw new \Exception($error);
     }
@@ -689,8 +920,8 @@ class Validation
             }
         }
 
-        $error = self::$errorTemplates['lengthLe'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['LengthLe'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{length}}', $length, $error);
         throw new \Exception($error);
     }
@@ -709,8 +940,8 @@ class Validation
             }
         }
 
-        $error = self::$errorTemplates['lengthGeAndLe'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['LengthGeAndLe'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{lengthMin}}', $lengthMin, $error);
         $error = str_replace('{{lengthMax}}', $lengthMax, $error);
         throw new \Exception($error);
@@ -731,14 +962,14 @@ class Validation
                 return $value;
         }
 
-        $error = self::$errorTemplates['letters'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['Letters'];
+        $error = str_replace('{{param}}', $alias, $error);
         throw new \Exception($error);
     }
 
     /**
      * 验证: “{{param}}”只能包含字母
-     * 同letters
+     * 同Letters
      * @param $value mixed 参数值
      * @param $alias string 参数别名, 用于错误提示
      * @return mixed
@@ -752,8 +983,8 @@ class Validation
                 return $value;
         }
 
-        $error = self::$errorTemplates['alphabet'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['Alphabet'];
+        $error = str_replace('{{param}}', $alias, $error);
         throw new \Exception($error);
     }
 
@@ -772,14 +1003,14 @@ class Validation
                 return $value;
         }
 
-        $error = self::$errorTemplates['numbers'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['Numbers'];
+        $error = str_replace('{{param}}', $alias, $error);
         throw new \Exception($error);
     }
 
     /**
      * 验证: “{{param}}”只能是纯数字
-     * 同numbers
+     * 同Numbers
      * @param $value mixed 参数值
      * @param $alias string 参数别名, 用于错误提示
      * @return mixed
@@ -793,8 +1024,8 @@ class Validation
                 return $value;
         }
 
-        $error = self::$errorTemplates['digits'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['Digits'];
+        $error = str_replace('{{param}}', $alias, $error);
         throw new \Exception($error);
     }
 
@@ -813,15 +1044,15 @@ class Validation
                 return $value;
         }
 
-        $error = self::$errorTemplates['lettersAndNumbers'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['LettersAndNumbers'];
+        $error = str_replace('{{param}}', $alias, $error);
         throw new \Exception($error);
     }
 
     /**
      * 验证: “{{param}}”必须是数值
      * 一般用于大数处理（超过double表示范围的数,一般会用字符串来表示）
-     * 如果是正常范围内的数, 可以使用'int'或'float'来检测
+     * 如果是正常范围内的数, 可以使用'Int'或'Float'来检测
      * @param $value mixed 参数值
      * @param $alias string 参数别名, 用于错误提示
      * @return mixed
@@ -839,8 +1070,8 @@ class Validation
             }
         }
 
-        $error = self::$errorTemplates['numeric'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['Numeric'];
+        $error = str_replace('{{param}}', $alias, $error);
         throw new \Exception($error);
     }
 
@@ -859,8 +1090,8 @@ class Validation
                 return $value;
         }
 
-        $error = self::$errorTemplates['variableName'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['VariableName'];
+        $error = str_replace('{{param}}', $alias, $error);
         throw new \Exception($error);
     }
 
@@ -877,8 +1108,8 @@ class Validation
         if (is_string($value) && $value === $equalsValue)
             return $value;
 
-        $error = self::$errorTemplates['equals'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['Equals'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{value}}', $equalsValue, $error);
         throw new \Exception($error);
     }
@@ -894,13 +1125,13 @@ class Validation
     public static function validateIn($value, $valueList, $alias = 'Parameter')
     {
         if (is_array($valueList) === false || count($valueList) === 0)
-            throw new \Exception("“${alias}”参数的验证模版(in:)格式错误, 必须提供可取值的列表");
+            throw new \Exception("“${alias}”参数的验证模版(In:)格式错误, 必须提供可取值的列表");
 
         if (in_array($value, $valueList, true))
             return $value;
 
-        $error = self::$errorTemplates['in'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['In'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{valueList}}', implode(', ', $valueList), $error);
         throw new \Exception($error);
     }
@@ -916,13 +1147,13 @@ class Validation
     public static function validateNotIn($value, $valueList, $alias = 'Parameter')
     {
         if (is_array($valueList) === false || count($valueList) === 0)
-            throw new \Exception("“${alias}”参数的验证模版(notIn:)格式错误, 必须提供不可取的值的列表");
+            throw new \Exception("“${alias}”参数的验证模版(NotIn:)格式错误, 必须提供不可取的值的列表");
 
         if (in_array($value, $valueList, true) === false)
             return $value;
 
-        $error = self::$errorTemplates['notIn'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['NotIn'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{valueList}}', implode(', ', $valueList), $error);
         throw new \Exception($error);
     }
@@ -938,7 +1169,7 @@ class Validation
     public static function validateInIgnoreCase($value, $valueList, $alias = 'Parameter')
     {
         if (is_array($valueList) === false || count($valueList) === 0)
-            throw new \Exception("“${alias}”参数的验证模版(inIgnoreCase:)格式错误, 必须提供可取值的列表");
+            throw new \Exception("“${alias}”参数的验证模版(InIgnoreCase:)格式错误, 必须提供可取值的列表");
 
         $lowerValue = strtolower($value);
         foreach ($valueList as $v) {
@@ -949,8 +1180,8 @@ class Validation
         return $value;
 
         VeriFailed:
-        $error = self::$errorTemplates['inIgnoreCase'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['InIgnoreCase'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{valueList}}', implode(', ', $valueList), $error);
         throw new \Exception($error);
     }
@@ -966,7 +1197,7 @@ class Validation
     public static function validateNotInIgnoreCase($value, $valueList, $alias = 'Parameter')
     {
         if (is_array($valueList) === false || count($valueList) === 0)
-            throw new \Exception("“${alias}”参数的验证模版(notInIgnoreCase:)格式错误, 必须提供不可取的值的列表");
+            throw new \Exception("“${alias}”参数的验证模版(NotInIgnoreCase:)格式错误, 必须提供不可取的值的列表");
 
         $lowerValue = strtolower($value);
         foreach ($valueList as $v) {
@@ -977,8 +1208,8 @@ class Validation
         return $value;
 
         VeriFailed:
-        $error = self::$errorTemplates['notInIgnoreCase'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['NotInIgnoreCase'];
+        $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{valueList}}', implode(', ', $valueList), $error);
         throw new \Exception($error);
     }
@@ -1007,7 +1238,7 @@ class Validation
     public static function validateRegexp($value, $regexp, $reason = null, $alias = 'Parameter')
     {
         if (is_string($regexp) === false || $regexp === '')
-            throw new \Exception("“${alias}”参数的验证模版(regexp:)格式错误, 没有提供正则表达式");
+            throw new \Exception("“${alias}”参数的验证模版(Regexp:)格式错误, 没有提供正则表达式");
 
         $result = @preg_match($regexp, $value);
         if ($result === 1)
@@ -1015,8 +1246,8 @@ class Validation
         else if ($result === false)
             throw new \Exception("“${alias}”参数的正则表达式验证失败, 请检查正则表达式是否合法");
 
-        $error = self::$errorTemplates['regexp'];
-        $error = str_replace('{{param}}', $alias = 'Parameter', $error);
+        $error = self::$errorTemplates['Regexp'];
+        $error = str_replace('{{param}}', $alias, $error);
         if (!$reason)
             $reason = "不匹配正则表达式“${regexp}”";
         $error = str_replace('{{reason}}', $reason, $error);

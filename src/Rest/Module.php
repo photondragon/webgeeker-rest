@@ -32,6 +32,8 @@ class Module
         $this->result = $result;
     }
 
+    //region HTTP Method handlers
+
     /**
      * 获取model列表
      * 对应HTTP请求: GET https://example.com/api/model
@@ -152,6 +154,8 @@ class Module
     {
         $this->notSupport($id);
     }
+
+    //endregion
 
     final protected function notSupport()
     {
@@ -310,6 +314,23 @@ class Module
         if($module instanceof Module)
             return $module;
         throw new \Exception('无效的模块' . $modelName);
+    }
+
+    /**
+     * 验证输入参数
+     * @param $params array 包含输入参数的数组
+     * @param $validators array 包含验证字符串的数组
+     * @throws \Exception 验证不通过会抛出异常
+     */
+    public function validate($params, $validators)
+    {
+        if(is_array($params) === false)
+            throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): \$params必须是数组");
+
+        foreach ($validators as $name => $validator) {
+            $value = @$params[$name];
+            Validation::validate($value, $validator, $name);
+        }
     }
 
 //    //region 输出结果

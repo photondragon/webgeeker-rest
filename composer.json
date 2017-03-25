@@ -15,6 +15,7 @@
     },
     "minimum-stability": "stable",
     "require": {
+        "psr/http-message": "^1.0",
         "webgeeker/utils": "^0.1"
     },
     "require-dev": {

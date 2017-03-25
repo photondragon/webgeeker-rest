@@ -251,13 +251,13 @@ class Module
         } //end switch
     }
 
-    public static function dispatch($moduleName, $id, IRequest $request, IResponse $response)
+    public static function dispatch($component, $modelName, $id, IRequest $request, IResponse $response)
     {
         $result = new Result;
 
         ob_start(); //打开缓冲区，接收所有echo输出
         try {
-            $module = self::createModule($moduleName, $request, $response, $result);
+            $module = self::createModule($component, $modelName, $request, $response, $result);
             $module->process($id); //处理
         } catch (\Exception $e) {
             $result->debug($e->getTraceAsString());
@@ -283,30 +283,33 @@ class Module
     }
 
     /**
-     * @param $moduleName
+     * @param $component string 组件名
+     * @param $modelName string 模型名
      * @param IRequest $request
      * @param IResponse $response
      * @param Result $result
      * @return Module
      * @throws \Exception
      */
-    private static function createModule($moduleName, IRequest $request, IResponse $response, Result $result)
+    private static function createModule($component, $modelName, IRequest $request, IResponse $response, Result $result)
     {
-        if(strlen($moduleName)==0)
+        if(strlen($modelName)==0)
             throw new \Exception('参数moduleName无效');
-        $className = ucfirst($moduleName) . 'Api';
+        $component = ucfirst($component);
+        $modelName = ucfirst($modelName);
+        $className = "Api\\Components\\$component\\$modelName\\${modelName}Api";
 
         if(class_exists($className)===false) //任务类不存在
-            throw new \Exception("找不到模块$moduleName");
+            throw new \Exception("找不到$className");
 
         try {
             $module = new $className($request, $response, $result);
         } catch (\Exception $e) {
-            throw new \Exception("创建模块{$moduleName}失败");
+            throw new \Exception("创建模块${modelName}失败");
         }
         if($module instanceof Module)
             return $module;
-        throw new \Exception('无效的模块' . $moduleName);
+        throw new \Exception('无效的模块' . $modelName);
     }
 
 //    //region 输出结果

@@ -44,8 +44,14 @@ class Table //implements ArrayAccess
     public static function getTableForModel($modelName)
     {
         if (isset(self::$tables[$modelName])==false) {
-            $mapping = @self::$modelDbMappings[$modelName];
-            self::$tables[$modelName] = new Table($modelName, $mapping);
+            $i = strripos($modelName, '\\');
+            if($i===false)
+                $tableName = $modelName;
+            else
+                $tableName = substr($modelName, $i+1);
+
+            $mapping = @self::$modelDbMappings[$tableName];
+            self::$tables[$modelName] = new Table($tableName, $mapping);
         }
         return self::$tables[$modelName];
     }

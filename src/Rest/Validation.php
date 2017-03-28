@@ -504,6 +504,46 @@ class Validation
         throw new \Exception($error);
     }
 
+    public static function validateArray($value, $alias = 'Parameter')
+    {
+        if(is_array($value)) {
+            $is = true;
+            foreach ($value as $key => $val) {
+                if(!is_integer($key)) {
+                    $is = false;
+                    break;
+                }
+            }
+            if($is)
+                return $value;
+        }
+        $error = self::$errorTemplates['Array'];
+        $error = str_replace('{{param}}', $alias, $error);
+        throw new \Exception($error);
+    }
+
+    public static function validateObject($value, $alias = 'Parameter')
+    {
+        if(is_array($value)) {
+            if(count($value)) {
+                $is = false;
+                foreach ($value as $key => $val) {
+                    if (!is_numeric($key) || stripos($key, '.') !== false) {
+                        $is = true;
+                        break;
+                    }
+                }
+            }
+            else
+                $is = true;
+            if($is)
+                return $value;
+        }
+        $error = self::$errorTemplates['Object'];
+        $error = str_replace('{{param}}', $alias, $error);
+        throw new \Exception($error);
+    }
+
     //endregion
 
     //region validate integer

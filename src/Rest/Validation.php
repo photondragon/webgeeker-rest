@@ -263,7 +263,7 @@ class Validation
 
                 } while (1);
 
-                $validators[] = ['Regexp', substr($segment, 7)];
+                $validators[] = ['Regexp', substr($segment, 7), null];
             } // end if(stripos($segment, 'Regexp:')===0)
             else {
                 $pos = stripos($segment, ':');
@@ -1212,18 +1212,6 @@ class Validation
         $error = str_replace('{{param}}', $alias, $error);
         $error = str_replace('{{valueList}}', implode(', ', $valueList), $error);
         throw new \Exception($error);
-    }
-
-    /**
-     * 验证: “{{param}}”只能取这些值: yes, on, 1, true, y（忽略大小写）
-     * @param $value mixed 参数值
-     * @param $alias string 参数别名, 用于错误提示
-     * @return mixed
-     * @throws \Exception
-     */
-    public static function validateAccepted($value, $alias = 'Parameter')
-    {
-        return self::validateInIgnoreCase($value, ['yes', 'on', '1', 'true', 'y'], $alias = 'Parameter');
     }
 
     /**

@@ -328,11 +328,39 @@ class Module
             throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): \$params必须是数组");
 
         foreach ($validators as $name => $validator) {
-            $value = @$params[$name];
-            Validation::validate($value, $validator, $name);
+            $keys = explode('.', $name);
+            if(count($keys)===0)
+                throw new \Exception("validators数组中包含空的字段名");
+            self::_validateUnit($params, $keys, $validator);
         }
     }
 
+    private static function _validateUnit($params, $keys, $validator, $keyPrefix = '')
+    {
+        $value = $params;
+        $keysCount = count($keys);
+        for ($n = 0; $n < $keysCount; $n++) {
+            $key = $keys[$n];
+            if($key === '*'){
+                Validation::validateArray($value, $keyPrefix);
+                $c = count($value);
+                for ($i = 0; $i < $c; $i++) {
+                    $element = $value[$i];
+                    self::_validateUnit($element, array_slice($keys, $n+1), $validator, $keyPrefix."[$i]");
+                }
+                return;
+            } else {
+                $value = @$value[$key];
+                if($keyPrefix === '')
+                    $keyPrefix = $key;
+                else
+                    $keyPrefix .= ".$key";
+            }
+            if($value === null)
+                break;
+        }
+        Validation::validate($value, $validator, $keyPrefix);
+    }
 //    //region 输出结果
 //
 //    /**

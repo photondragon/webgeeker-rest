@@ -328,10 +328,87 @@ class Module
             throw new \Exception(get_class($this) . '::' . __FUNCTION__ . "(): \$params必须是数组");
 
         foreach ($validators as $name => $validator) {
+
+            if(strlen($name) === 0)
+                throw new \Exception("validators数组中包含空的字段名");
+
+            if(preg_match('/^[a-zA-Z0-9_.\[\]*]+$/', $name) !== 1)
+                throw new \Exception("非法的字段名“${name}”");
+
             $keys = explode('.', $name);
             if(count($keys)===0)
                 throw new \Exception("validators数组中包含空的字段名");
-            self::_validateUnit($params, $keys, $validator);
+
+            $filteredKeys = [];
+            // 尝试识别普通数组, 形如'varname[*]'
+            foreach ($keys as $key) {
+                if(strlen($key)===0)
+                    throw new \Exception("“${name}”中包含空的字段名");
+
+                $i = stripos($key, '[');
+                if($i === false) // 普通的key
+                {
+                    if(stripos($key, '*') !== false)
+                        throw new \Exception("“${name}”中'*'号只能处于方括号[]中");
+                    if(stripos($key, ']') !== false)
+                        throw new \Exception("“${key}”中包含了非法的']'号");
+                    if(preg_match('/^[0-9]/', $key)===1) {
+                        if(count($keys)===1)
+                            throw new \Exception("字段名“${name}”不得以数字开头");
+                        else
+                            throw new \Exception("“${name}”中包含了以数字开头的字段名“${key}”");
+                    }
+                    $filteredKeys[] = $key;
+                    continue;
+                } else if($i === 0) {
+                    throw new \Exception("“${name}”中'['号前面没有变量名");
+                } else {
+                    $j = stripos($key, ']');
+                    if($j === false)
+                        throw new \Exception("“${key}”中的'['号之后缺少']'");
+                    if($i>$j)
+                        throw new \Exception("“${key}”中'[', ']'顺序颠倒了");
+
+                    // 识别普通数组的变量名（'[*]'之前的部分）
+                    $varName = substr($key, 0, $i);
+                    if(stripos($varName, '*') !== false)
+                        throw new \Exception("“${key}”中包含了非法的'*'号");
+                    if(preg_match('/^[0-9]/', $varName)===1)
+                        throw new \Exception("“${name}”中包含了以数字开头的字段名“${varName}”");
+                    $filteredKeys[] = $varName;
+
+                    // 识别普通数组的索引值
+                    $index = substr($key, $i+1, $j-$i-1);
+                    if($index === '*')
+                        $filteredKeys[] = $index;
+                    else if(is_numeric($index))
+                        $filteredKeys[] = intval($index);
+                    else
+                        throw new \Exception("“${key}”中的方括号[]之间只能包含数字或'*'号");
+
+                    // 尝试识别多维数组
+                    $len = strlen($key);
+                    while($j < $len - 1) {
+                        $j++;
+                        $i = stripos($key, '[', $j);
+                        if($i !== $j)
+                            throw new \Exception("“${key}”中的“[$index]”之后包含非法字符");
+                        $j = stripos($key, ']', $i);
+                        if($j === false)
+                            throw new \Exception("“${key}”中的'['号之后缺少']'");
+
+                        $index = substr($key, $i+1, $j-$i-1);
+                        if($index === '*')
+                            $filteredKeys[] = $index;
+                        else if(is_numeric($index))
+                            $filteredKeys[] = intval($index);
+                        else
+                            throw new \Exception("“${key}”中的方括号[]之间只能包含数字或'*'号");
+                    }
+                }
+            }
+            
+            self::_validateUnit($params, $filteredKeys, $validator);
         }
     }
 
@@ -353,13 +430,16 @@ class Module
                 $value = @$value[$key];
                 if($keyPrefix === '')
                     $keyPrefix = $key;
+                else if(is_integer($key))
+                    $keyPrefix .= "[$key]";
                 else
                     $keyPrefix .= ".$key";
             }
             if($value === null)
                 break;
         }
-        Validation::validate($value, $validator, $keyPrefix);
+        if($n >= $keysCount - 1)
+            Validation::validate($value, $validator, $keyPrefix);
     }
 //    //region 输出结果
 //

@@ -13,11 +13,17 @@
             "WebGeeker\\Rest\\": "src/Rest/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "WebGeeker\\RestTest\\": "tests/Rest"
+        }
+    },
     "minimum-stability": "stable",
     "require": {
         "psr/http-message": "^1.0",
         "webgeeker/utils": "^0.1"
     },
     "require-dev": {
+        "phpunit/phpunit": "^5.7"
     }
 }

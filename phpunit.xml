@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<phpunit bootstrap="./vendor/autoload.php">
+    <testsuite name="WebGeeker\Rest tests">
+        <directory>./tests/Rest</directory>
+    </testsuite>
+</phpunit>

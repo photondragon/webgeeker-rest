@@ -1443,10 +1443,11 @@ class Validation
      * @param $value mixed 要验证的值
      * @param $validator string|string[] 一条验证器, 例: 'Length:6,16|regex:/^[a-zA-Z0-9]+$/'; 或多条验证器的数组, 多条验证器之间是或的关系
      * @param string $alias 要验证的值的别名, 用于在验证不通过时生成提示字符串.
+     * @param $ignoreRequired bool 是否忽略所有的Required检测子
      * @return mixed 返回$value被过滤后的新值
      * @throws \Exception
      */
-    public static function validateValue($value, $validator, $alias = 'Parameter')
+    public static function validateValue($value, $validator, $alias = 'Parameter', $ignoreRequired = false)
     {
         if(is_array($validator)) {
             $validators = $validator;
@@ -1464,7 +1465,8 @@ class Validation
 
                 if($value === null) //没有提供参数. 默认不检测, 直接通过
                 {
-                    if($validator!=='Required' && stripos($validator, 'Required|') === false) // 也不包含Required验证子
+                    if(($validator!=='Required' && stripos($validator, 'Required|') === false) // 也不包含Required验证子
+                        || $ignoreRequired) //忽略Required检测子
                     {
                         $passed = true;
                         continue;
@@ -1613,10 +1615,11 @@ class Validation
      *     'authors[*].name' => 'Length:2',
      *     'authors[*].email' => 'Regexp:/^[a-zA-Z0-9]+@[a-zA-Z0-9-]+.[a-z]+$/',
      * ]
+     * @param $ignoreRequired bool 是否忽略所有的Required检测子
      * @return mixed
      * @throws \Exception 验证不通过会抛出异常
      */
-    public static function validate($params, $validations)
+    public static function validate($params, $validations, $ignoreRequired = false)
     {
         if(is_array($params) === false)
             throw new \Exception(self::class . '::' . __FUNCTION__ . "(): \$params必须是数组");
@@ -1624,7 +1627,7 @@ class Validation
         foreach ($validations as $keypath => $validator) {
 
             $keys = self::_compileKeypath($keypath);
-            self::_validate($params, $keys, $validator);
+            self::_validate($params, $keys, $validator, '', $ignoreRequired);
         }
         return $params;
     }
@@ -1635,9 +1638,10 @@ class Validation
      * @param $keys
      * @param $validator
      * @param string $keyPrefix
+     * @param $ignoreRequired bool 是否忽略所有的Required检测子
      * @throws \Exception
      */
-    private static function _validate($params, $keys, $validator, $keyPrefix = '')
+    private static function _validate($params, $keys, $validator, $keyPrefix = '', $ignoreRequired = false)
     {
         $value = $params;
         $keysCount = count($keys);
@@ -1649,7 +1653,7 @@ class Validation
                 if ($c > 0) {
                     for ($i = 0; $i < $c; $i++) {
                         $element = $value[$i];
-                        self::_validate($element, array_slice($keys, $n + 1), $validator, $keyPrefix . "[$i]");
+                        self::_validate($element, array_slice($keys, $n + 1), $validator, $keyPrefix . "[$i]", $ignoreRequired);
                     }
                     return;
                 }
@@ -1674,7 +1678,7 @@ class Validation
                 break;
         }
         if($n >= $keysCount - 1)
-            Validation::validateValue($value, $validator, $keyPrefix);
+            Validation::validateValue($value, $validator, $keyPrefix, $ignoreRequired);
     }
 
 }

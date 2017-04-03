@@ -244,6 +244,21 @@ class ValidationTest extends TestCase
         
         $this->assertNotNull(Validation::validate($params, []));
         $this->assertNotNull(Validation::validate($params, $validators));
+
+        // ignore Required
+        $params = ['content' => null];
+        $validators = ['content' => 'Required|LengthLe:20',];
+        $this->_assertThrowExpection(function () use ($params, $validators) {
+            Validation::validate($params, $validators);
+        }, 'line ' . __LINE__ . ": Validation::validate(\$params, \$validators)应该抛出异常");
+        $this->assertNotNull(Validation::validate($params, $validators, true));
+
+        // ignore Required 2
+        $params = ['content' => 'a'];
+        $validators = ['content' => 'Required|LengthGeAndLe:1,20',];
+        $this->assertNotNull(Validation::validate($params, $validators));
+        $params = ['content' => null];
+        $this->assertNotNull(Validation::validate($params, $validators, true));
     }
 
 }

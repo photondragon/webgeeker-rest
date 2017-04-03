@@ -341,11 +341,12 @@ class Module
      *     'authors[*].name' => 'Length:2',
      *     'authors[*].email' => 'Regexp:/^[a-zA-Z0-9]+@[a-zA-Z0-9-]+.[a-z]+$/',
      * ]
+     * @param $ignoreRequired bool 是否忽略所有的Required检测子
      * @throws \Exception 验证不通过会抛出异常
      */
-    public function validate($params, $validators)
+    public function validate($params, $validators, $ignoreRequired = false)
     {
-        Validation::validate($params, $validators);
+        Validation::validate($params, $validators, $ignoreRequired);
     }
 
 //    //region 输出结果

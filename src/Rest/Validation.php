@@ -685,6 +685,50 @@ class Validation
         throw new \Exception($error);
     }
 
+    public static function validateEmail($value, $alias = 'Parameter')
+    {
+        if (filter_var($value, FILTER_VALIDATE_EMAIL)) {
+            return $value;
+        }
+
+        $error = self::$errorTemplates['Email'];
+        $error = str_replace('{{param}}', $alias, $error);
+        throw new \Exception($error);
+    }
+
+    public static function validateUrl($value, $alias = 'Parameter')
+    {
+        if (filter_var($value, FILTER_VALIDATE_URL)) {
+            return $value;
+        }
+
+        $error = self::$errorTemplates['Url'];
+        $error = str_replace('{{param}}', $alias, $error);
+        throw new \Exception($error);
+    }
+
+    public static function validateIp($value, $alias = 'Parameter')
+    {
+        if (filter_var($value, FILTER_VALIDATE_IP)) {
+            return $value;
+        }
+
+        $error = self::$errorTemplates['Ip'];
+        $error = str_replace('{{param}}', $alias, $error);
+        throw new \Exception($error);
+    }
+
+    public static function validateMac($value, $alias = 'Parameter')
+    {
+        if (filter_var($value, FILTER_VALIDATE_MAC)) {
+            return $value;
+        }
+
+        $error = self::$errorTemplates['Mac'];
+        $error = str_replace('{{param}}', $alias, $error);
+        throw new \Exception($error);
+    }
+
     /**
      * 验证: “{{param}}”只能取这些值: {{valueList}}
      * @param $value string 参数值
@@ -1006,6 +1050,10 @@ class Validation
         'Numeric' => '“{{param}}”必须是数值', // 一般用于大数处理（超过double表示范围的数,一般会用字符串来表示）, 如果是正常范围内的数, 可以使用'Int'或'Float'来检测
         'VariableName' => '“{{param}}”只能包含字母、数字和下划线，并且以字母或下划线开头',
         'Equals' => '“{{param}}”必须等于 {{value}}',
+        'Email' => '“{{param}}”不是合法的email',
+        'Url' => '“{{param}}”不是合法的Url地址',
+        'Ip' => '“{{param}}”不是合法的IP地址',
+        'Mac' => '“{{param}}”不是合法的MAC地址',
         'In' => '“{{param}}”只能取这些值: {{valueList}}',
         'NotIn' => '“{{param}}”不能取这些值: {{valueList}}',
         'InIgnoreCase' => '“{{param}}”只能取这些值: {{valueList}}（忽略大小写）',
@@ -1092,6 +1140,10 @@ class Validation
         'Numeric' => 'Numeric',
         'VariableName' => 'VariableName',
         'Equals' => 'Equals:abc',
+        'Email' => 'Email',
+        'Url' => 'Url',
+        'Ip' => 'Ip',
+        'Mac' => 'Mac',
         'In' => 'In:abc,def,g',
         'NotIn' => 'NotIn:abc,def,g',
         'InIgnoreCase' => 'InIgnoreCase:abc,def,g',

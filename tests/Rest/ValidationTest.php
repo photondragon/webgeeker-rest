@@ -140,8 +140,13 @@ class ValidationTest extends TestCase
 
     public function testValidateString()
     {
-        $this->assertNotNull(Validation::validateFloat('-12311112311111'));
-        $this->assertNotNull(Validation::validateFloatGtAndLt('10.', -100, 100));
+        $this->assertNotNull(Validation::validateString('-12311112311111'));
+        $this->assertNotNull(Validation::validateLengthGe('10.', 0));
+
+        $this->assertNotNull(Validation::validateEmail('photondragon@163.com'));
+        $this->assertNotNull(Validation::validateUrl('http://webgeeker.com'));
+        $this->assertNotNull(Validation::validateIp('10.1.1.1'));
+        $this->assertNotNull(Validation::validateMac('0a:32:dc:02:2f:0a'));
     }
 
     public function testValidateRegexp()

@@ -181,18 +181,16 @@ abstract class Model
                 }
                 break;
             case self::FieldTypeList:
-                $t = gettype($value);
-                if($t==='string') {
+                if(is_string($value)) {
                     $value = @json_decode($value, true);
                     if($value===null)
                         break;
-                    $t = gettype($value);
                 }
 
-                if ($t==='array') {
+                if (is_array($value)) {
                     $isAssoc = false;
                     foreach ($value as $key => $_) {
-                        if(is_int($key)===false) //不是普通数组
+                        if(is_integer($key)===false) //不是普通数组
                         {
                             $isAssoc = true;
                             break;
@@ -200,28 +198,18 @@ abstract class Model
                     }
                     if($isAssoc) //关联数组转普通数组
                         $value = array_values($value);
-                    if(count($value)===0) {
-                        $value = null;
-                        break;
-                    }
                 }
                 else
                     $value = null;
                 break;
             case self::FieldTypeMap:
-                $t = gettype($value);
-                if($t==='string') {
+                if(is_string($value)) {
                     $value = @json_decode($value, true);
                     if($value===null)
                         break;
-                    $t = gettype($value);
                 }
 
-                if ($t==='array') {
-                    if(count($value)===0) {
-                        $value = null;
-                        break;
-                    }
+                if (is_array($value)) {
                     $isNormalArray = false;
                     foreach ($value as $key => $_) {
                         if(is_int($key)) //是普通数组
@@ -231,12 +219,10 @@ abstract class Model
                         }
                     }
                     if($isNormalArray)
-                        $value = null;
+                        $value = [];
                 }
-                elseif ($t==='object') {
+                elseif (is_object($value)) {
                     $value = (array)$value;
-                    if(count($value)===0)
-                        $value = null;
                 }
                 else
                     $value = null;
@@ -1008,6 +994,10 @@ abstract class Model
 
     public static function deleteByFields($fields)
     {
+        $fields = array_filter($fields, function ($v, $k) {
+            return in_array($k, static::$fieldNames);
+        }, ARRAY_FILTER_USE_BOTH);
+
         return static::getTable()->deleteByFields($fields);
     }
 
@@ -1046,6 +1036,10 @@ abstract class Model
      */
     public static function countByFields($fields)
     {
+        $fields = array_filter($fields, function ($v, $k) {
+            return in_array($k, static::$fieldNames);
+        }, ARRAY_FILTER_USE_BOTH);
+
         return static::getTable()->countByFields($fields);
     }
 
@@ -1150,6 +1144,10 @@ abstract class Model
      */
     public static function findByFields($fields)
     {
+        $fields = array_filter($fields, function ($v, $k) {
+            return in_array($k, static::$fieldNames);
+        }, ARRAY_FILTER_USE_BOTH);
+
         $rawData = static::getTable()->findByFields($fields);
         if($rawData===null)
             return null;//static::getNullObject();
@@ -1171,6 +1169,10 @@ abstract class Model
      */
     public static function findAndIncreaseByFields($fields, $increaseField, $deltaValue)
     {
+        $fields = array_filter($fields, function ($v, $k) {
+            return in_array($k, static::$fieldNames);
+        }, ARRAY_FILTER_USE_BOTH);
+
         $rawData = static::getTable()->findAndIncreaseByFields($fields, $increaseField, $deltaValue);
         if($rawData===null)
             return null;//static::getNullObject();
@@ -1186,6 +1188,10 @@ abstract class Model
      */
     public static function findAllByFields($fields)
     {
+        $fields = array_filter($fields, function ($v, $k) {
+            return in_array($k, static::$fieldNames);
+        }, ARRAY_FILTER_USE_BOTH);
+        
         $rawDatas = static::getTable()->findAllByFields($fields);
         if(count($rawDatas)==0)
             return [];

@@ -40,7 +40,7 @@ class ValidationTest extends TestCase
         $this->assertFalse($ret, $message);
     }
     
-    public function testValidateIntXXX()
+    public function testValidateInt()
     {
         // Int
         $this->assertNotNull(Validation::validateInt('-1'));
@@ -61,6 +61,9 @@ class ValidationTest extends TestCase
         $this->_assertThrowExpection(function () {
             Validation::validateInt('abc');
         }, 'line ' . __LINE__ . ": Validation::validateInt('abc')应该抛出异常");
+
+        // IntEquals
+        $this->assertNotNull(Validation::validateIntEquals('-1', -1));
 
         // IntGt
         $this->assertNotNull(Validation::validateIntGt('1', 0));
@@ -129,7 +132,7 @@ class ValidationTest extends TestCase
 
     }
 
-    public function testValidateFloatXXX()
+    public function testValidateFloat()
     {
         $this->assertNotNull(Validation::validateFloat('-12311112311111'));
         $this->assertNotNull(Validation::validateFloatGtAndLt('10.', -100, 100));
@@ -157,6 +160,11 @@ class ValidationTest extends TestCase
         $this->_assertThrowExpection(function () {
             Validation::validateArray(['a'=>1]);
         }, 'line ' . __LINE__ . ": Validation::validateArray(['a'=>1])应该抛出异常");
+
+        $this->assertNotNull(Validation::validateArrayLength([1,2,3], 3));
+        $this->assertNotNull(Validation::validateArrayLengthGe([1,2,3], 3));
+        $this->assertNotNull(Validation::validateArrayLengthLe([1,2,3], 3));
+        $this->assertNotNull(Validation::validateArrayLengthGeAndLe([1,2,3], 3, 3));
     }
 
     public function testValidateObject()
@@ -177,6 +185,60 @@ class ValidationTest extends TestCase
 
     public function testValidateOthers()
     {
+    }
+
+    public function testValidate()
+    {
+        $params = [
+            'id' => 1,
+            'title' => 'WebGeeker Validation',
+            'content' => 'WebGeeker Validation 是一个非常强大的参数验证工具, 能够验证无限嵌套的数据结构',
+            'timestamp' => 1491127037.37,
+            'contentType' => 0, // 内容类型. 0-html, 1-txt, 2-markdown
+            'author' => [
+                'id' => 1,
+                'username' => 'photondragon',
+                'nickname' => '迷途老码',
+                'email' => 'photondragon@163.com',
+            ],
+            'comments' => [
+                [
+                    'content' => 'webgeeker/validation 棒棒哒',
+                    'author' => [
+                        'email' => 'admin@webgeeker.com',
+                        'nickname' => '阿达明',
+                    ],
+                ],
+                [
+                    'content' => 'webgeeker/validation is amazing!',
+                ],
+            ],
+        ];
+
+        $validators = [
+            'id' => 'Required|IntGt:0',
+            'title' => 'Required|LengthGeAndLe:2,100',
+            'content' => 'Required|LengthGe:1|LengthLe:10000000',
+            'timestamp' => 'FloatGt:0',
+            'contentType' => 'Required|IntIn:0,1,2',
+            'author' => 'Required|Object',
+            'author.id' => 'Required|IntGt:0',
+            'author.username' => 'Required|LengthGe:4|Regexp:/^[a-zA-Z0-9]+$/',
+            'author.nickname' => 'LengthGe:0',
+            'author.email' => 'Regexp:/^[a-zA-Z0-9]+@[a-zA-Z0-9-]+.[a-z]+$/',
+            'comments' => 'Array',
+            'comments[*]' => 'Object',
+            'comments[*].content' => 'Required|LengthGe:8',
+            'comments[*].author' => 'Object',
+            'comments[*].author.email' => 'Regexp:/^[a-zA-Z0-9]+@[a-zA-Z0-9-]+.[a-z]+$/',
+            'comments[*].author.nickname' => 'LengthGe:0',
+            'visitors' => 'Array',
+            'visitors[*]' => 'Object',
+            'visitors[*].id' => 'Required|IntGt:0',
+        ];
+        
+        $this->assertNotNull(Validation::validate($params, []));
+        $this->assertNotNull(Validation::validate($params, $validators));
     }
 
 }

@@ -11,6 +11,7 @@ namespace WebGeeker\Rest;
 
 use \Psr\Http\Message\ResponseInterface as IResponse;
 use \Psr\Http\Message\ServerRequestInterface as IRequest;
+use WebGeeker\Validation\Validation;
 
 /**
  * @file Module.php

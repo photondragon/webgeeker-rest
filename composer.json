@@ -21,7 +21,8 @@
     "minimum-stability": "stable",
     "require": {
         "psr/http-message": "^1.0",
-        "webgeeker/utils": "^0.1"
+        "webgeeker/utils": "^0.1",
+        "webgeeker/validation": "^0.1"
     },
     "require-dev": {
         "phpunit/phpunit": "^5.7"
